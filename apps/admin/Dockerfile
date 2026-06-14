@@ -5,15 +5,15 @@ WORKDIR /repo
 FROM base AS build
 COPY pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json packages/shared/
-COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile=false --filter @renting/web --filter @renting/shared
+COPY apps/admin/package.json apps/admin/
+RUN pnpm install --frozen-lockfile=false --filter @renting/admin --filter @renting/shared
 COPY packages/shared packages/shared
-COPY apps/web apps/web
-RUN pnpm --filter @renting/shared build && pnpm --filter @renting/web build
+COPY apps/admin apps/admin
+RUN pnpm --filter @renting/shared build && pnpm --filter @renting/admin build
 
 FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=build /repo /repo
-WORKDIR /repo/apps/web
-EXPOSE 3000
+WORKDIR /repo/apps/admin
+EXPOSE 3100
 CMD ["pnpm", "start"]
