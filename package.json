@@ -1,0 +1,25 @@
+{
+  "name": "renting-ru",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Multi-category rental platform (cars today, real estate tomorrow) — API-first monorepo",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "api:dev": "pnpm --filter @renting/api dev",
+    "api:migrate": "pnpm --filter @renting/api migrate:deploy",
+    "api:seed": "pnpm --filter @renting/api seed",
+    "openapi:emit": "pnpm --filter @renting/api openapi:emit",
+    "web:dev": "pnpm --filter @renting/web dev",
+    "admin:dev": "pnpm --filter @renting/admin dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  }
+}

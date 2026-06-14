@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Renting.ru — Quick Start</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #f5f4f0; min-height: 100vh; display: flex; justify-content: center;
+         padding: 2.5rem 1rem; color: #1a1a18; }
+  .page { width: 100%; max-width: 640px; }
+  h1 { font-size: 24px; font-weight: 600; margin-bottom: .25rem; }
+  .sub { font-size: 14px; color: #666; margin-bottom: 2rem; }
+  .step { display: flex; gap: 16px; margin-bottom: 1.75rem; }
+  .num { width: 32px; height: 32px; border-radius: 50%; background: #eeedfe;
+         color: #3c3489; font-size: 13px; font-weight: 600; display: flex;
+         align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .step-body { flex: 1; }
+  .step-title { font-size: 15px; font-weight: 600; margin-bottom: 5px; }
+  .step-desc { font-size: 13px; color: #555; margin-bottom: 10px; line-height: 1.6; }
+  .cmd { background: #fff; border: 1px solid #e2e0da; border-radius: 8px;
+         padding: 10px 14px; display: flex; align-items: center;
+         justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .cmd:last-child { margin-bottom: 0; }
+  .cmd code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #1a1a18; }
+  .copy-btn { font-size: 12px; color: #666; cursor: pointer; border: 1px solid #ddd;
+              border-radius: 6px; padding: 4px 10px; background: #f5f4f0;
+              white-space: nowrap; }
+  .copy-btn:hover { background: #eee; }
+  .divider { height: 1px; background: #e2e0da; margin: 1.75rem 0; }
+  .urls { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .url-card { background: #fff; border: 1px solid #e2e0da; border-radius: 10px;
+              padding: 14px 16px; cursor: pointer; text-decoration: none; display: block; }
+  .url-card:hover { border-color: #b0adff; }
+  .url-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase;
+               letter-spacing: .04em; margin-bottom: 4px; }
+  .url-val { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #3c3489; }
+  .creds { background: #fff; border: 1px solid #e2e0da; border-radius: 10px;
+           padding: 14px 16px; margin-bottom: 1.5rem; }
+  .creds-title { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase;
+                 letter-spacing: .04em; margin-bottom: 10px; }
+  .cred-row { display: flex; justify-content: space-between; align-items: center;
+              font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f0ede8; }
+  .cred-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .cred-row span { color: #555; }
+  .cred-row code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+                   background: #f5f4f0; padding: 2px 7px; border-radius: 4px; }
+  .extras { font-size: 13px; color: #555; line-height: 2; }
+  .extras strong { color: #1a1a18; font-weight: 600; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px;
+         margin-left: 6px; font-weight: 500; vertical-align: middle; }
+  .tag-api { background: #e1f5ee; color: #085041; }
+  .tag-web { background: #eeedfe; color: #26215c; }
+  .tag-adm { background: #faeeda; color: #412402; }
+  .note { font-size: 12px; color: #888; line-height: 1.6; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Renting.ru</h1>
+  <p class="sub">Start everything with one command — from the repo root</p>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="step-body">
+      <div class="step-title">Start Docker services</div>
+      <p class="step-desc">PostgreSQL, Redis, MinIO (file storage) and Mailpit (email preview) run in containers.</p>
+      <div class="cmd">
+        <code>docker-compose up -d</code>
+        <button class="copy-btn" onclick="copy(this,'docker-compose up -d')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="step-body">
+      <div class="step-title">Run migrations + seed <em style="font-size:12px;font-weight:400;color:#888">(first time only)</em></div>
+      <p class="step-desc">Creates all DB tables then loads demo cars, drivers, users, coupons and content.</p>
+      <div class="cmd">
+        <code>pnpm --filter @renting/api migrate:deploy</code>
+        <button class="copy-btn" onclick="copy(this,'pnpm --filter @renting/api migrate:deploy')">Copy</button>
+      </div>
+      <div class="cmd">
+        <code>pnpm --filter @renting/api seed</code>
+        <button class="copy-btn" onclick="copy(this,'pnpm --filter @renting/api seed')">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="step-body">
+      <div class="step-title">
+        Start everything
+        <span class="tag tag-api">API</span>
+        <span class="tag tag-web">Web</span>
+        <span class="tag tag-adm">Admin</span>
+      </div>
+      <p class="step-desc">Turborepo runs all three apps in parallel in a single terminal window.</p>
+      <div class="cmd">
+        <code>pnpm dev</code>
+        <button class="copy-btn" onclick="copy(this,'pnpm dev')">Copy</button>
+      </div>
+      <p class="note">&#9432; Run this from the repo root folder. All logs stream together, colour-coded per app.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="urls">
+    <a class="url-card" href="http://localhost:3000/en" target="_blank">
+      <div class="url-label">Customer site</div>
+      <div class="url-val">localhost:3000</div>
+    </a>
+    <a class="url-card" href="http://localhost:3100" target="_blank">
+      <div class="url-label">Admin panel</div>
+      <div class="url-val">localhost:3100</div>
+    </a>
+    <a class="url-card" href="http://localhost:4000/docs" target="_blank">
+      <div class="url-label">Swagger UI</div>
+      <div class="url-val">localhost:4000/docs</div>
+    </a>
+    <a class="url-card" href="http://localhost:8025" target="_blank">
+      <div class="url-label">Mailpit (emails)</div>
+      <div class="url-val">localhost:8025</div>
+    </a>
+    <a class="url-card" href="http://localhost:9001" target="_blank">
+      <div class="url-label">MinIO console</div>
+      <div class="url-val">localhost:9001</div>
+    </a>
+  </div>
+
+  <div class="creds">
+    <div class="creds-title">Login credentials</div>
+    <div class="cred-row"><span>Admin panel</span><code>admin@renting.ru / Password1!</code></div>
+    <div class="cred-row"><span>Customer site</span><code>customer@renting.ru / Password1!</code></div>
+    <div class="cred-row"><span>Coupon code</span><code>WELCOME10 &mdash; 10% off, max $50</code></div>
+    <div class="cred-row"><span>MinIO</span><code>minioadmin / minioadmin</code></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="extras">
+    <strong>Individual app commands</strong><br>
+    <code style="font-family:monospace">pnpm api:dev</code> &nbsp;·&nbsp;
+    <code style="font-family:monospace">pnpm web:dev</code> &nbsp;·&nbsp;
+    <code style="font-family:monospace">pnpm admin:dev</code><br>
+    <strong>Build for production</strong><br>
+    <code style="font-family:monospace">pnpm build</code><br>
+    <strong>Run e2e tests</strong><br>
+    <code style="font-family:monospace">pnpm --filter @renting/api test</code><br>
+    <strong>Emit OpenAPI spec</strong><br>
+    <code style="font-family:monospace">pnpm openapi:emit</code>
+  </div>
+</div>
+
+<script>
+function copy(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.color = '#0f6e56';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1800);
+  });
+}
+</script>
+</body>
+</html>

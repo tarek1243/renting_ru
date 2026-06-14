@@ -1,0 +1,1379 @@
+openapi: 3.0.3
+info:
+  title: Renting.ru API
+  version: 1.0.0
+  description: |
+    API-first rental platform. All responses use the standard envelope:
+    `{ success, data, error: { code, message }, meta: { pagination } }`.
+    Stable machine-readable `error.code` values are defined in `@renting/shared` `ErrorCode`.
+  contact:
+    name: Renting.ru
+    email: api@renting.ru
+
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local development
+  - url: https://api.renting.ru/api/v1
+    description: Production
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: Auth
+    description: Login, register, token refresh, OTP
+  - name: Categories
+    description: Rental categories (Cars, Real Estate, …)
+  - name: Listings
+    description: Public listing search and detail
+  - name: Drivers
+    description: Driver profiles and availability
+  - name: Pricing
+    description: Quote endpoint
+  - name: Bookings
+    description: Create and manage bookings
+  - name: Media
+    description: Presigned S3 uploads
+  - name: Reviews
+    description: Submit and read reviews
+  - name: Favorites
+    description: Saved listings
+  - name: Notifications
+    description: User notifications
+  - name: Content
+    description: Static pages, FAQs
+  - name: Admin — Categories
+    description: Category builder, attribute schema, toggle
+  - name: Admin — Listings
+    description: Fleet management
+  - name: Admin — Bookings
+    description: Booking operations and state machine
+  - name: Admin — Drivers
+    description: Driver management
+  - name: Admin — Customers
+    description: Customer accounts and license verification
+  - name: Admin — Reviews
+    description: Review moderation
+  - name: Admin — Reports
+    description: KPIs, analytics, CSV export
+  - name: Admin — Settings
+    description: Platform configuration
+  - name: Admin — Webhooks
+    description: Outbound webhook endpoint management
+  - name: Admin — Coupons
+    description: Coupon management
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+
+  schemas:
+    ApiEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: {}
+        error:
+          nullable: true
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+        meta:
+          nullable: true
+          type: object
+          properties:
+            pagination:
+              type: object
+              properties:
+                page: { type: integer }
+                perPage: { type: integer }
+                total: { type: integer }
+                totalPages: { type: integer }
+
+    I18nText:
+      type: object
+      properties:
+        en: { type: string }
+        ru: { type: string }
+        ar: { type: string }
+      required: [en]
+
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string, example: cars }
+        name: { $ref: '#/components/schemas/I18nText' }
+        icon: { type: string, nullable: true }
+        isEnabled: { type: boolean }
+        attributes:
+          type: array
+          items: { $ref: '#/components/schemas/CategoryAttribute' }
+        pricingUnits:
+          type: array
+          items: { $ref: '#/components/schemas/CategoryPricingUnit' }
+
+    CategoryAttribute:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        label: { $ref: '#/components/schemas/I18nText' }
+        dataType: { type: string, enum: [string, number, boolean, select, multi_select] }
+        filterWidget: { type: string, enum: [select, range, toggle, text] }
+        isRequired: { type: boolean }
+        options: { type: array, items: { type: string }, nullable: true }
+        minValue: { type: number, nullable: true }
+        maxValue: { type: number, nullable: true }
+
+    CategoryPricingUnit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        unit: { type: string, enum: [hour, day, week, night, month] }
+        label: { $ref: '#/components/schemas/I18nText' }
+        isDefault: { type: boolean }
+
+    Listing:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { $ref: '#/components/schemas/I18nText' }
+        description: { $ref: '#/components/schemas/I18nText' }
+        status: { type: string, enum: [draft, active, suspended, archived] }
+        attributes: { type: object, description: JSONB — keys match CategoryAttribute.key }
+        category: { $ref: '#/components/schemas/Category' }
+        media: { type: array, items: { $ref: '#/components/schemas/ListingMedia' } }
+        prices: { type: array, items: { $ref: '#/components/schemas/ListingPrice' } }
+        extras: { type: array, items: { $ref: '#/components/schemas/Extra' } }
+        viewCount: { type: integer }
+        averageRating: { type: number, nullable: true }
+
+    ListingMedia:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string }
+        isCover: { type: boolean }
+        sortOrder: { type: integer }
+
+    ListingPrice:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        unit: { type: string }
+        amount: { type: number }
+        currency: { type: string }
+
+    Extra:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/I18nText' }
+        price: { type: number }
+        currency: { type: string }
+
+    Driver:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        isAvailable: { type: boolean }
+        rating: { type: number, nullable: true }
+        bio: { $ref: '#/components/schemas/I18nText' }
+        languages: { type: array, items: { type: string } }
+        user:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            avatarUrl: { type: string, nullable: true }
+        hourlyRate: { type: number, nullable: true }
+        dailyRate: { type: number, nullable: true }
+
+    Quote:
+      type: object
+      properties:
+        currency: { type: string }
+        breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              amount: { type: number }
+        subtotal: { type: number }
+        driverFee: { type: number }
+        extrasTotal: { type: number }
+        discountAmount: { type: number }
+        taxAmount: { type: number }
+        depositAmount: { type: number }
+        totalAmount: { type: number }
+
+    Booking:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: RNT-2026-00001 }
+        status: { type: string, enum: [pending, confirmed, in_progress, completed, cancelled, disputed, no_show, refunded] }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        pricingUnit: { type: string }
+        withDriver: { type: boolean }
+        totalAmount: { type: number }
+        depositAmount: { type: number }
+        currency: { type: string }
+        listing: { $ref: '#/components/schemas/Listing' }
+        driver: { $ref: '#/components/schemas/Driver' }
+        extras: { type: array, items: { $ref: '#/components/schemas/Extra' } }
+        payment: { $ref: '#/components/schemas/Payment' }
+
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        gateway: { type: string }
+        status: { type: string, enum: [pending, processing, succeeded, failed, refunded, partially_refunded] }
+        amount: { type: number }
+        currency: { type: string }
+        clientSecret: { type: string, nullable: true }
+
+    Review:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, nullable: true }
+        status: { type: string, enum: [pending, approved, rejected, flagged] }
+        createdAt: { type: string, format: date-time }
+        author:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        isVerified: { type: boolean }
+        roles: { type: array, items: { type: string } }
+
+paths:
+  # ─── Auth ───────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new customer account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                phone: { type: string }
+      responses:
+        '201':
+          description: Registration successful — returns tokens + user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiEnvelope' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate with email + password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Returns accessToken, refreshToken, user (with roles array)
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate refresh token, get new access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: New token pair
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token
+      responses:
+        '200':
+          description: Logged out
+
+  /auth/otp/send:
+    post:
+      tags: [Auth]
+      summary: Send OTP to email or phone
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target, channel]
+              properties:
+                target: { type: string, description: Email address or phone number }
+                channel: { type: string, enum: [email, sms] }
+      responses:
+        '200':
+          description: OTP sent
+
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target, code]
+              properties:
+                target: { type: string }
+                code: { type: string, length: 6 }
+      responses:
+        '200':
+          description: OTP valid — returns tokens if account exists, else registration token
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UserProfile' }
+
+  # ─── Categories ─────────────────────────────────────────
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List all enabled categories
+      security: []
+      parameters:
+        - in: query
+          name: includeDisabled
+          schema: { type: boolean }
+          description: Admin only — include disabled categories
+      responses:
+        '200':
+          description: Array of categories with attributes and pricing units
+
+  /categories/{slug}:
+    get:
+      tags: [Categories]
+      summary: Get single category by slug
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string, example: cars }
+      responses:
+        '200':
+          description: Category detail
+        '404':
+          description: Category not found (CATEGORY_NOT_FOUND)
+        '403':
+          description: Category disabled (CATEGORY_DISABLED)
+
+  # ─── Listings ───────────────────────────────────────────
+  /categories/{slug}/listings:
+    get:
+      tags: [Listings]
+      summary: Search listings in a category
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, default: 12 }
+        - in: query
+          name: startAt
+          schema: { type: string, format: date-time }
+          description: Filter — must be available from this datetime
+        - in: query
+          name: endAt
+          schema: { type: string, format: date-time }
+        - in: query
+          name: locationId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: attrs
+          schema: { type: string }
+          description: |
+            JSON-encoded JSONB attribute filters, e.g.:
+            `{"transmission":"automatic","seats":{"min":5}}`
+        - in: query
+          name: sortBy
+          schema: { type: string, enum: [createdAt, price, rating] }
+        - in: query
+          name: sortDir
+          schema: { type: string, enum: [asc, desc] }
+      responses:
+        '200':
+          description: Paginated listing results
+
+  /categories/{slug}/listings/{listingSlug}:
+    get:
+      tags: [Listings]
+      summary: Get listing detail
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: path
+          name: listingSlug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Full listing with media, prices, extras, reviews
+
+  # ─── Drivers ────────────────────────────────────────────
+  /drivers/available:
+    get:
+      tags: [Drivers]
+      summary: List available drivers for a time range
+      security: []
+      parameters:
+        - in: query
+          name: startAt
+          required: true
+          schema: { type: string, format: date-time }
+        - in: query
+          name: endAt
+          required: true
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: List of available drivers
+
+  /drivers/{id}:
+    get:
+      tags: [Drivers]
+      summary: Get driver profile
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Driver profile
+
+  # ─── Pricing ────────────────────────────────────────────
+  /listings/{id}/quote:
+    post:
+      tags: [Pricing]
+      summary: Get live price quote (no booking created)
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startAt, endAt, pricingUnit]
+              properties:
+                startAt: { type: string, format: date-time }
+                endAt: { type: string, format: date-time }
+                pricingUnit: { type: string, enum: [hour, day, week, night, month] }
+                withDriver: { type: boolean, default: false }
+                driverId: { type: string, format: uuid }
+                extraIds: { type: array, items: { type: string, format: uuid } }
+                couponCode: { type: string }
+                currency: { type: string, default: USD }
+      responses:
+        '200':
+          description: Full price breakdown
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Quote' }
+
+  # ─── Bookings ───────────────────────────────────────────
+  /bookings:
+    post:
+      tags: [Bookings]
+      summary: Create a booking (re-prices server-side, inserts availability block)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingId, startAt, endAt, pricingUnit, paymentMethod]
+              properties:
+                listingId: { type: string, format: uuid }
+                startAt: { type: string, format: date-time }
+                endAt: { type: string, format: date-time }
+                pricingUnit: { type: string, enum: [hour, day, week, night, month] }
+                withDriver: { type: boolean, default: false }
+                driverId: { type: string, format: uuid }
+                extraIds: { type: array, items: { type: string, format: uuid } }
+                couponCode: { type: string }
+                currency: { type: string, default: USD }
+                paymentMethod: { type: string, enum: [stripe, regional, cash] }
+                notes: { type: string }
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Booking' }
+        '409':
+          description: Listing unavailable for chosen period (LISTING_UNAVAILABLE)
+        '400':
+          description: License required (LICENSE_REQUIRED)
+
+    get:
+      tags: [Bookings]
+      summary: List current user's bookings
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: status
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated booking list
+
+  /bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Get booking detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Full booking with listing, driver, payment, invoice
+
+  /bookings/{id}/cancel:
+    patch:
+      tags: [Bookings]
+      summary: Customer cancels their booking
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Booking cancelled; refund initiated if policy allows
+
+  /bookings/{id}/review:
+    post:
+      tags: [Bookings, Reviews]
+      summary: Submit review for a completed booking
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 1000 }
+      responses:
+        '201':
+          description: Review submitted (status pending moderation)
+
+  # ─── License ────────────────────────────────────────────
+  /licenses/upload:
+    post:
+      tags: [Bookings]
+      summary: Upload driver license (triggers verification queue)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [licenseNumber, expiresAt, frontImageKey, backImageKey]
+              properties:
+                licenseNumber: { type: string, description: Encrypted AES-256-GCM server-side }
+                expiresAt: { type: string, format: date }
+                frontImageKey: { type: string, description: S3 key from presigned upload }
+                backImageKey: { type: string, description: S3 key from presigned upload }
+      responses:
+        '201':
+          description: License submitted for review
+
+  # ─── Media ──────────────────────────────────────────────
+  /media/presign:
+    post:
+      tags: [Media]
+      summary: Get presigned S3 URL for direct upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, contentType]
+              properties:
+                filename: { type: string }
+                contentType: { type: string, example: image/jpeg }
+                folder: { type: string, default: uploads }
+      responses:
+        '200':
+          description: Presigned URL valid for 15 minutes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          uploadUrl: { type: string }
+                          key: { type: string }
+                          publicUrl: { type: string }
+
+  # ─── Favorites ──────────────────────────────────────────
+  /favorites:
+    get:
+      tags: [Favorites]
+      summary: List current user's favorite listings
+      responses:
+        '200':
+          description: Paginated favorites
+
+  /favorites/{listingId}:
+    put:
+      tags: [Favorites]
+      summary: Add listing to favorites (idempotent)
+      parameters:
+        - in: path
+          name: listingId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Added
+    delete:
+      tags: [Favorites]
+      summary: Remove listing from favorites
+      parameters:
+        - in: path
+          name: listingId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Removed
+
+  # ─── Notifications ──────────────────────────────────────
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List current user's notifications
+      parameters:
+        - in: query
+          name: unreadOnly
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Notifications list
+
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        '200':
+          description: All marked read
+
+  # ─── Content ────────────────────────────────────────────
+  /pages/{slug}:
+    get:
+      tags: [Content]
+      summary: Get CMS content page
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string, example: about }
+      responses:
+        '200':
+          description: Page content
+
+  /faqs:
+    get:
+      tags: [Content]
+      summary: List FAQ items
+      security: []
+      responses:
+        '200':
+          description: FAQ list
+
+  # ─── Admin — Categories ─────────────────────────────────
+  /admin/categories:
+    get:
+      tags: [Admin — Categories]
+      summary: List all categories (including disabled)
+      responses:
+        '200':
+          description: All categories
+    post:
+      tags: [Admin — Categories]
+      summary: Create a new rental category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, name]
+              properties:
+                slug: { type: string }
+                name: { $ref: '#/components/schemas/I18nText' }
+                icon: { type: string }
+                isEnabled: { type: boolean, default: false }
+                config: { type: object }
+      responses:
+        '201':
+          description: Category created
+
+  /admin/categories/{id}:
+    patch:
+      tags: [Admin — Categories]
+      summary: Update category metadata
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { $ref: '#/components/schemas/I18nText' }
+                icon: { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Admin — Categories]
+      summary: Delete category (only if no active listings)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Deleted
+
+  /admin/categories/{id}/toggle:
+    patch:
+      tags: [Admin — Categories]
+      summary: Toggle isEnabled on/off — instantly hides or exposes category everywhere
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Toggled; Redis cache invalidated
+
+  /admin/categories/{id}/attributes:
+    post:
+      tags: [Admin — Categories]
+      summary: Add an attribute to a category's JSONB schema
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key, label, dataType, filterWidget]
+              properties:
+                key: { type: string }
+                label: { $ref: '#/components/schemas/I18nText' }
+                dataType: { type: string, enum: [string, number, boolean, select, multi_select] }
+                filterWidget: { type: string, enum: [select, range, toggle, text] }
+                isRequired: { type: boolean }
+                options: { type: array, items: { type: string } }
+                minValue: { type: number }
+                maxValue: { type: number }
+                sortOrder: { type: integer }
+      responses:
+        '201':
+          description: Attribute added
+
+  /admin/categories/{id}/pricing-units:
+    post:
+      tags: [Admin — Categories]
+      summary: Add a pricing unit to a category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [unit, label]
+              properties:
+                unit: { type: string, enum: [hour, day, week, night, month] }
+                label: { $ref: '#/components/schemas/I18nText' }
+                isDefault: { type: boolean }
+      responses:
+        '201':
+          description: Pricing unit added
+
+  # ─── Admin — Listings ───────────────────────────────────
+  /admin/listings:
+    get:
+      tags: [Admin — Listings]
+      summary: List all listings across all categories
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: categoryId
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Paginated listings
+
+    post:
+      tags: [Admin — Listings]
+      summary: Create a listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [categoryId, title, slug]
+              properties:
+                categoryId: { type: string, format: uuid }
+                title: { $ref: '#/components/schemas/I18nText' }
+                description: { $ref: '#/components/schemas/I18nText' }
+                slug: { type: string }
+                attributes: { type: object }
+                locationId: { type: string, format: uuid }
+                status: { type: string, enum: [draft, active] }
+      responses:
+        '201':
+          description: Listing created
+
+  /admin/listings/{id}:
+    patch:
+      tags: [Admin — Listings]
+      summary: Update listing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { $ref: '#/components/schemas/I18nText' }
+                description: { $ref: '#/components/schemas/I18nText' }
+                attributes: { type: object }
+                status: { type: string, enum: [draft, active, suspended, archived] }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Admin — Listings]
+      summary: Delete listing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Deleted
+
+  # ─── Admin — Bookings ───────────────────────────────────
+  /admin/bookings:
+    get:
+      tags: [Admin — Bookings]
+      summary: List all bookings
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: perPage
+          schema: { type: integer }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Paginated bookings
+
+  /admin/bookings/{id}/transition:
+    patch:
+      tags: [Admin — Bookings]
+      summary: Advance booking to a new state via state machine
+      description: |
+        Valid transitions:
+        - pending → confirmed | cancelled
+        - confirmed → in_progress | cancelled
+        - in_progress → completed | disputed | no_show
+        - completed → refunded (partial/full)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string }
+                notes: { type: string }
+      responses:
+        '200':
+          description: Booking transitioned
+        '400':
+          description: Invalid transition (BOOKING_INVALID_TRANSITION)
+
+  # ─── Admin — Drivers ────────────────────────────────────
+  /admin/drivers:
+    get:
+      tags: [Admin — Drivers]
+      summary: List all drivers
+      responses:
+        '200':
+          description: Drivers list
+
+  /admin/drivers/{id}:
+    patch:
+      tags: [Admin — Drivers]
+      summary: Update driver (availability, rates)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isAvailable: { type: boolean }
+                hourlyRate: { type: number }
+                dailyRate: { type: number }
+      responses:
+        '200':
+          description: Updated
+
+  # ─── Admin — Customers ──────────────────────────────────
+  /admin/customers:
+    get:
+      tags: [Admin — Customers]
+      summary: List all customers
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated customers
+
+  /admin/licenses/{id}/verify:
+    patch:
+      tags: [Admin — Customers]
+      summary: Approve or reject a driver license
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [approved, rejected] }
+                notes: { type: string }
+      responses:
+        '200':
+          description: License status updated; notification sent to customer
+
+  # ─── Admin — Reviews ────────────────────────────────────
+  /admin/reviews:
+    get:
+      tags: [Admin — Reviews]
+      summary: List reviews (filterable by status)
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, approved, rejected, flagged] }
+      responses:
+        '200':
+          description: Reviews list
+
+  /admin/reviews/{id}:
+    patch:
+      tags: [Admin — Reviews]
+      summary: Moderate review
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [approved, rejected, flagged] }
+                moderationNote: { type: string }
+      responses:
+        '200':
+          description: Moderated
+
+  # ─── Admin — Coupons ────────────────────────────────────
+  /admin/coupons:
+    get:
+      tags: [Admin — Coupons]
+      summary: List coupons
+      responses:
+        '200':
+          description: Coupons
+
+    post:
+      tags: [Admin — Coupons]
+      summary: Create a coupon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, discountType, discountValue]
+              properties:
+                code: { type: string }
+                discountType: { type: string, enum: [percent, fixed] }
+                discountValue: { type: number }
+                maxDiscount: { type: number }
+                usageLimit: { type: integer }
+                validFrom: { type: string, format: date-time }
+                validUntil: { type: string, format: date-time }
+                isActive: { type: boolean }
+      responses:
+        '201':
+          description: Coupon created
+
+  # ─── Admin — Reports ────────────────────────────────────
+  /admin/dashboard/kpis:
+    get:
+      tags: [Admin — Reports]
+      summary: Dashboard KPIs
+      responses:
+        '200':
+          description: Revenue, bookings by status, fleet utilization, top listings
+
+  /admin/reports/{type}:
+    get:
+      tags: [Admin — Reports]
+      summary: Download report (JSON or CSV)
+      parameters:
+        - in: path
+          name: type
+          required: true
+          schema: { type: string, enum: [bookings, revenue, fleet, drivers] }
+        - in: query
+          name: from
+          required: true
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          required: true
+          schema: { type: string, format: date }
+        - in: query
+          name: format
+          schema: { type: string, enum: [json, csv], default: json }
+      responses:
+        '200':
+          description: Report data or CSV download
+
+  /admin/audit-logs:
+    get:
+      tags: [Admin — Reports]
+      summary: Audit log of all admin actions
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: actorId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: action
+          schema: { type: string }
+      responses:
+        '200':
+          description: Audit log entries
+
+  # ─── Admin — Settings ───────────────────────────────────
+  /admin/settings:
+    get:
+      tags: [Admin — Settings]
+      summary: List all platform settings
+      responses:
+        '200':
+          description: Settings array
+
+  /admin/settings/{key}:
+    put:
+      tags: [Admin — Settings]
+      summary: Update a setting value
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: { type: string, example: tax_percent }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value: { type: string }
+      responses:
+        '200':
+          description: Updated
+
+  # ─── Admin — Webhooks ───────────────────────────────────
+  /admin/webhooks:
+    get:
+      tags: [Admin — Webhooks]
+      summary: List webhook endpoints
+      responses:
+        '200':
+          description: Webhook endpoints
+
+    post:
+      tags: [Admin — Webhooks]
+      summary: Register a new webhook endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, events]
+              properties:
+                url: { type: string, format: uri }
+                events:
+                  type: array
+                  items: { type: string, enum: [booking.created, booking.confirmed, booking.cancelled, booking.completed] }
+                secret: { type: string, description: Used for HMAC-SHA256 X-Renting-Signature header }
+      responses:
+        '201':
+          description: Endpoint registered
+
+  /admin/webhooks/{id}:
+    delete:
+      tags: [Admin — Webhooks]
+      summary: Delete webhook endpoint
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Deleted
+
+  /admin/webhooks/{id}/deliveries:
+    get:
+      tags: [Admin — Webhooks]
+      summary: List delivery attempts for an endpoint
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Delivery history with status and response codes
+
+  # ─── Payment Webhooks ───────────────────────────────────
+  /payments/webhook/stripe:
+    post:
+      tags: [Bookings]
+      summary: Stripe payment webhook (raw body, Stripe-Signature header required)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Acknowledged
+
+  /payments/webhook/regional:
+    post:
+      tags: [Bookings]
+      summary: Regional gateway webhook
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ref: { type: string }
+                status: { type: string, enum: [succeeded, failed] }
+      responses:
+        '200':
+          description: Acknowledged

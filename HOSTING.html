@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Renting.ru — Hosting Guide</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #f5f4f0; min-height: 100vh; display: flex; justify-content: center;
+         padding: 2.5rem 1rem; color: #1a1a18; }
+  .page { width: 100%; max-width: 680px; }
+  h1 { font-size: 24px; font-weight: 600; margin-bottom: .25rem; }
+  .sub { font-size: 14px; color: #666; margin-bottom: 2rem; }
+  .option { background: #fff; border: 1px solid #e2e0da; border-radius: 12px;
+            padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+  .option.best { border: 2px solid #378ADD; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px;
+           border-radius: 20px; margin-bottom: .75rem; }
+  .badge-rec  { background: #E6F1FB; color: #0C447C; }
+  .badge-mid  { background: #f0ede8; color: #5F5E5A; }
+  .badge-adv  { background: #FAEEDA; color: #633806; }
+  .opt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+  .opt-name { font-size: 17px; font-weight: 600; }
+  .price { font-size: 13px; color: #666; }
+  .opt-desc { font-size: 13px; color: #555; margin-bottom: .75rem; line-height: 1.7; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: .75rem; }
+  .pill { font-size: 11px; padding: 3px 9px; border-radius: 6px; border: 1px solid #e2e0da; color: #666; }
+  .pill.yes { border-color: #97C459; color: #3B6D11; background: #EAF3DE; }
+  .pill.no  { border-color: #F09595; color: #A32D2D; background: #FCEBEB; }
+  .toggle-btn { font-size: 12px; cursor: pointer; color: #185FA5; background: none;
+                border: none; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+  .steps { margin-top: 1rem; border-top: 1px solid #e2e0da; padding-top: 1rem; display: none; }
+  .step { display: flex; gap: 10px; margin-bottom: .75rem; align-items: flex-start; }
+  .snum { width: 22px; height: 22px; border-radius: 50%; background: #E6F1FB; color: #0C447C;
+          font-size: 11px; font-weight: 600; display: flex; align-items: center;
+          justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .stxt { font-size: 13px; line-height: 1.7; }
+  .stxt code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+               background: #f5f4f0; padding: 1px 5px; border-radius: 4px; }
+  .stxt a { color: #185FA5; }
+  .divider { height: 1px; background: #e2e0da; margin: 1.5rem 0; }
+  .note { font-size: 13px; color: #555; background: #f5f4f0; border-radius: 8px;
+          padding: .875rem 1rem; line-height: 1.7; }
+  .note a { color: #185FA5; }
+  .note strong { font-weight: 600; color: #1a1a18; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Hosting guide</h1>
+  <p class="sub">Three options — from easiest to most control</p>
+
+  <!-- Railway -->
+  <div class="option best">
+    <div class="badge badge-rec">&#9733; Recommended — easiest</div>
+    <div class="opt-head">
+      <span class="opt-name">Railway</span>
+      <span class="price">~$5–15 / month</span>
+    </div>
+    <p class="opt-desc">Connect your GitHub repo, click deploy. Railway auto-detects the Dockerfiles, adds Postgres + Redis plugins in one click, and wires the connection strings automatically. No server management.</p>
+    <div class="pills">
+      <span class="pill yes">&#10003; PostgreSQL plugin</span>
+      <span class="pill yes">&#10003; Redis plugin</span>
+      <span class="pill yes">&#10003; Auto-deploy on git push</span>
+      <span class="pill no">&#10007; No built-in S3 → use Cloudflare R2 (free)</span>
+    </div>
+    <button class="toggle-btn" onclick="toggle('railway',this)">Show steps ▾</button>
+    <div class="steps" id="railway">
+      <div class="step"><div class="snum">1</div><div class="stxt">Push the repo to GitHub: <code>git init &amp;&amp; git add . &amp;&amp; git commit -m "init" &amp;&amp; git push</code></div></div>
+      <div class="step"><div class="snum">2</div><div class="stxt">Go to <a href="https://railway.app" target="_blank">railway.app</a> → New Project → Deploy from GitHub → select your repo</div></div>
+      <div class="step"><div class="snum">3</div><div class="stxt">Add database plugins: click <strong>+ New</strong> → Database → <strong>PostgreSQL</strong>, then repeat for <strong>Redis</strong></div></div>
+      <div class="step"><div class="snum">4</div><div class="stxt">Add 3 services — one per app. Set the Dockerfile path for each:<br>
+        API: <code>apps/api/Dockerfile</code><br>
+        Web: <code>apps/web/Dockerfile</code><br>
+        Admin: <code>apps/admin/Dockerfile</code>
+      </div></div>
+      <div class="step"><div class="snum">5</div><div class="stxt">Railway auto-injects <code>DATABASE_URL</code> and <code>REDIS_URL</code>. Add the remaining env vars to the API service:<br>
+        <code>JWT_ACCESS_SECRET</code> = any long random string<br>
+        <code>JWT_REFRESH_SECRET</code> = different long random string<br>
+        <code>ENCRYPTION_KEY</code> = exactly 32 characters
+      </div></div>
+      <div class="step"><div class="snum">6</div><div class="stxt">On the Web and Admin services, set:<br><code>NEXT_PUBLIC_API_URL</code> = the Railway URL of your API service</div></div>
+      <div class="step"><div class="snum">7</div><div class="stxt">File uploads: create a free <a href="https://dash.cloudflare.com" target="_blank">Cloudflare R2</a> bucket → add <code>S3_ENDPOINT</code>, <code>S3_ACCESS_KEY</code>, <code>S3_SECRET_KEY</code>, <code>S3_BUCKET</code>, <code>S3_PUBLIC_URL</code> to the API service</div></div>
+      <div class="step"><div class="snum">8</div><div class="stxt">Seed the database: Railway dashboard → API service → Console tab → run:<br><code>pnpm --filter @renting/api migrate:deploy &amp;&amp; pnpm --filter @renting/api seed</code></div></div>
+    </div>
+  </div>
+
+  <!-- Render -->
+  <div class="option">
+    <div class="badge badge-mid">Good alternative</div>
+    <div class="opt-head">
+      <span class="opt-name">Render</span>
+      <span class="price">~$7–20 / month</span>
+    </div>
+    <p class="opt-desc">Similar to Railway. Connect GitHub, create Web Services for API + Web + Admin, add a Postgres database. Free tier available but sleeps after 15 min inactivity.</p>
+    <div class="pills">
+      <span class="pill yes">&#10003; PostgreSQL managed</span>
+      <span class="pill no">&#10007; Redis costs extra → use Upstash (free tier)</span>
+      <span class="pill yes">&#10003; Auto-deploy on push</span>
+      <span class="pill no">&#10007; Free tier sleeps after 15 min</span>
+    </div>
+    <button class="toggle-btn" onclick="toggle('render',this)">Show steps ▾</button>
+    <div class="steps" id="render">
+      <div class="step"><div class="snum">1</div><div class="stxt">Go to <a href="https://render.com" target="_blank">render.com</a> → New → PostgreSQL → create database → copy the connection string</div></div>
+      <div class="step"><div class="snum">2</div><div class="stxt">Get a free Redis from <a href="https://upstash.com" target="_blank">upstash.com</a> → copy the <code>REDIS_URL</code></div></div>
+      <div class="step"><div class="snum">3</div><div class="stxt">New → Web Service → connect GitHub → Docker runtime → Dockerfile path: <code>apps/api/Dockerfile</code></div></div>
+      <div class="step"><div class="snum">4</div><div class="stxt">Add env vars: <code>DATABASE_URL</code>, <code>REDIS_URL</code>, <code>JWT_ACCESS_SECRET</code>, <code>JWT_REFRESH_SECRET</code>, <code>ENCRYPTION_KEY</code> (32 chars)</div></div>
+      <div class="step"><div class="snum">5</div><div class="stxt">Repeat step 3 for Web (<code>apps/web/Dockerfile</code>) and Admin (<code>apps/admin/Dockerfile</code>)</div></div>
+      <div class="step"><div class="snum">6</div><div class="stxt">On Web + Admin: set <code>NEXT_PUBLIC_API_URL</code> to your Render API URL</div></div>
+      <div class="step"><div class="snum">7</div><div class="stxt">Render Shell on API service → run <code>pnpm --filter @renting/api migrate:deploy &amp;&amp; pnpm --filter @renting/api seed</code></div></div>
+    </div>
+  </div>
+
+  <!-- VPS -->
+  <div class="option">
+    <div class="badge badge-adv">Most control, cheapest long-term</div>
+    <div class="opt-head">
+      <span class="opt-name">VPS with Docker (Hetzner / DigitalOcean)</span>
+      <span class="price">~$6 / month</span>
+    </div>
+    <p class="opt-desc">Rent a VPS, clone the repo, run <code>docker compose up -d</code>. Works exactly like your local setup. Cheapest option but you manage the server yourself.</p>
+    <div class="pills">
+      <span class="pill yes">&#10003; Works exactly like local dev</span>
+      <span class="pill yes">&#10003; MinIO included — no separate S3 needed</span>
+      <span class="pill no">&#10007; You manage SSL, updates, backups</span>
+      <span class="pill no">&#10007; Basic Linux knowledge required</span>
+    </div>
+    <button class="toggle-btn" onclick="toggle('vps',this)">Show steps ▾</button>
+    <div class="steps" id="vps">
+      <div class="step"><div class="snum">1</div><div class="stxt">Create a VPS at <a href="https://hetzner.com/cloud" target="_blank">Hetzner</a> (cheapest), <a href="https://digitalocean.com" target="_blank">DigitalOcean</a>, or <a href="https://vultr.com" target="_blank">Vultr</a> — Ubuntu 22.04, 2 GB RAM minimum</div></div>
+      <div class="step"><div class="snum">2</div><div class="stxt">SSH in and install Docker:<br><code>curl -fsSL https://get.docker.com | sh</code></div></div>
+      <div class="step"><div class="snum">3</div><div class="stxt">Clone the repo:<br><code>git clone https://github.com/you/renting_ru &amp;&amp; cd renting_ru</code></div></div>
+      <div class="step"><div class="snum">4</div><div class="stxt">Copy and fill in env file:<br><code>cp .env.example .env &amp;&amp; nano .env</code><br>Set strong values for <code>JWT_ACCESS_SECRET</code>, <code>JWT_REFRESH_SECRET</code>, <code>ENCRYPTION_KEY</code></div></div>
+      <div class="step"><div class="snum">5</div><div class="stxt">Start all services:<br><code>docker compose up -d</code></div></div>
+      <div class="step"><div class="snum">6</div><div class="stxt">Migrate and seed:<br><code>docker compose exec api pnpm --filter @renting/api migrate:deploy</code><br><code>docker compose exec api pnpm --filter @renting/api seed</code></div></div>
+      <div class="step"><div class="snum">7</div><div class="stxt">Add HTTPS with <a href="https://caddyserver.com" target="_blank">Caddy</a> (easiest SSL) — point your domain to the server IP, Caddy handles the certificate automatically</div></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="note">
+    <strong>All three options also need:</strong><br>
+    <strong>Email:</strong> Use <a href="https://resend.com" target="_blank">Resend.com</a> — 3,000 free emails/month. Set <code>SMTP_HOST=smtp.resend.com</code>, <code>SMTP_USER=resend</code>, <code>SMTP_PASS=re_yourkey</code>.<br>
+    <strong>File storage (Railway/Render):</strong> <a href="https://developers.cloudflare.com/r2/" target="_blank">Cloudflare R2</a> — 10 GB free, S3-compatible. Set <code>S3_ENDPOINT</code>, <code>S3_BUCKET</code>, <code>S3_ACCESS_KEY</code>, <code>S3_SECRET_KEY</code>, <code>S3_PUBLIC_URL</code>.<br>
+    <strong>Domain:</strong> Buy from Cloudflare, Namecheap, or GoDaddy. Point DNS to your hosting provider.
+  </div>
+
+</div>
+<script>
+function toggle(id, btn) {
+  const el = document.getElementById(id);
+  const open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  btn.textContent = open ? 'Show steps ▾' : 'Hide steps ▴';
+}
+</script>
+</body>
+</html>

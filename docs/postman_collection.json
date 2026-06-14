@@ -1,0 +1,452 @@
+{
+  "info": {
+    "name": "Renting.ru API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "renting-ru-api-v1",
+    "description": "Complete API collection for Renting.ru — rental platform.\n\nAll responses follow the standard envelope:\n```json\n{ \"success\": true, \"data\": {}, \"error\": null, \"meta\": {} }\n```\n\n**Setup:** Set the `base_url` collection variable to your API (default: `http://localhost:4000/api/v1`).\nAfter calling POST /auth/login the `access_token` variable is auto-populated by the test script."
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:4000/api/v1", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "booking_id", "value": "", "type": "string" },
+    { "key": "listing_id", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"Password1!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (saves token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success) {",
+                  "  pm.collectionVariables.set('access_token', body.data.accessToken);",
+                  "  pm.collectionVariables.set('refresh_token', body.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@renting.ru\",\n  \"password\": \"Password1!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"refreshToken\": \"{{refresh_token}}\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"refreshToken\": \"{{refresh_token}}\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Enabled Categories",
+          "request": { "method": "GET", "url": "{{base_url}}/categories" }
+        },
+        {
+          "name": "Get Category (cars)",
+          "request": { "method": "GET", "url": "{{base_url}}/categories/cars" }
+        }
+      ]
+    },
+    {
+      "name": "Listings",
+      "item": [
+        {
+          "name": "Search Cars (all)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data.items?.length) {",
+                  "  pm.collectionVariables.set('listing_id', body.data.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/categories/cars/listings?page=1&perPage=6",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "cars", "listings"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "perPage", "value": "6" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Cars (available + automatic filter)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/categories/cars/listings?startAt=2026-07-01T09:00:00Z&endAt=2026-07-05T18:00:00Z&attrs=%7B%22transmission%22%3A%22automatic%22%7D",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "cars", "listings"],
+              "query": [
+                { "key": "startAt", "value": "2026-07-01T09:00:00Z" },
+                { "key": "endAt", "value": "2026-07-05T18:00:00Z" },
+                { "key": "attrs", "value": "{\"transmission\":\"automatic\"}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Listing Detail (Toyota Camry)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/categories/cars/listings/toyota-camry-2023"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pricing",
+      "item": [
+        {
+          "name": "Get Quote (3-day rental)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/listings/{{listing_id}}/quote",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startAt\": \"2026-07-01T09:00:00Z\",\n  \"endAt\": \"2026-07-04T09:00:00Z\",\n  \"pricingUnit\": \"day\",\n  \"withDriver\": false,\n  \"currency\": \"USD\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Quote (with driver + coupon)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/listings/{{listing_id}}/quote",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startAt\": \"2026-07-01T09:00:00Z\",\n  \"endAt\": \"2026-07-04T09:00:00Z\",\n  \"pricingUnit\": \"day\",\n  \"withDriver\": true,\n  \"couponCode\": \"WELCOME10\",\n  \"currency\": \"USD\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create Booking (Stripe)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success) {",
+                  "  pm.collectionVariables.set('booking_id', body.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listingId\": \"{{listing_id}}\",\n  \"startAt\": \"2026-07-01T09:00:00Z\",\n  \"endAt\": \"2026-07-04T09:00:00Z\",\n  \"pricingUnit\": \"day\",\n  \"withDriver\": false,\n  \"currency\": \"USD\",\n  \"paymentMethod\": \"regional\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "List My Bookings",
+          "request": { "method": "GET", "url": "{{base_url}}/bookings" }
+        },
+        {
+          "name": "Get Booking Detail",
+          "request": { "method": "GET", "url": "{{base_url}}/bookings/{{booking_id}}" }
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/bookings/{{booking_id}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"reason\": \"Plans changed\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Drivers",
+      "item": [
+        {
+          "name": "List Available Drivers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/drivers/available?startAt=2026-07-01T09:00:00Z&endAt=2026-07-04T09:00:00Z",
+              "host": ["{{base_url}}"],
+              "path": ["drivers", "available"],
+              "query": [
+                { "key": "startAt", "value": "2026-07-01T09:00:00Z" },
+                { "key": "endAt", "value": "2026-07-04T09:00:00Z" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Media",
+      "item": [
+        {
+          "name": "Get Presigned Upload URL",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/media/presign",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"license-front.jpg\",\n  \"contentType\": \"image/jpeg\",\n  \"folder\": \"licenses\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Dashboard",
+      "item": [
+        {
+          "name": "KPIs",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/dashboard/kpis" }
+        },
+        {
+          "name": "Bookings Report (CSV)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/admin/reports/bookings?from=2026-01-01&to=2026-12-31&format=csv",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "reports", "bookings"],
+              "query": [
+                { "key": "from", "value": "2026-01-01" },
+                { "key": "to", "value": "2026-12-31" },
+                { "key": "format", "value": "csv" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Revenue Report",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/reports/revenue?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Audit Logs",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/audit-logs" }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Categories",
+      "item": [
+        {
+          "name": "List All Categories",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/categories" }
+        },
+        {
+          "name": "Toggle Cars Category",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/admin/categories/{{cars_category_id}}/toggle"
+          }
+        },
+        {
+          "name": "Create Real Estate Category",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/admin/categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"real-estate\",\n  \"name\": { \"en\": \"Real Estate\", \"ru\": \"Недвижимость\", \"ar\": \"عقارات\" },\n  \"icon\": \"🏢\",\n  \"isEnabled\": false\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Add Attribute to Real Estate",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/admin/categories/{{real_estate_id}}/attributes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"property_type\",\n  \"label\": { \"en\": \"Property Type\", \"ru\": \"Тип недвижимости\", \"ar\": \"نوع العقار\" },\n  \"dataType\": \"select\",\n  \"filterWidget\": \"select\",\n  \"isRequired\": true,\n  \"options\": [\"apartment\", \"villa\", \"studio\", \"office\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Bookings",
+      "item": [
+        {
+          "name": "List All Bookings",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/bookings?page=1&perPage=20" }
+        },
+        {
+          "name": "Confirm Booking",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/admin/bookings/{{booking_id}}/transition",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"status\": \"confirmed\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Complete Booking",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/admin/bookings/{{booking_id}}/transition",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"status\": \"completed\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Customers & Licenses",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/customers?page=1" }
+        },
+        {
+          "name": "Approve License",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/admin/licenses/{{license_id}}/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"status\": \"approved\", \"notes\": \"Verified\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Settings",
+      "item": [
+        {
+          "name": "List Settings",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/settings" }
+        },
+        {
+          "name": "Update Tax Percent",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/admin/settings/tax_percent",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"value\": \"12\" }",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Webhooks",
+      "item": [
+        {
+          "name": "List Webhooks",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/webhooks" }
+        },
+        {
+          "name": "Register Webhook",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/admin/webhooks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://webhook.site/your-uuid\",\n  \"events\": [\"booking.created\", \"booking.confirmed\", \"booking.completed\"],\n  \"secret\": \"my-signing-secret\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
