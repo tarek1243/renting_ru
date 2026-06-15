@@ -8,7 +8,7 @@ import "../globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Renting — cars & more", template: "%s · Renting" },
-  description: "Rent cars with or without a driver. Real estate coming soon.",
+  description: "Rent cars with or without a driver.",
 };
 
 export function generateStaticParams() {

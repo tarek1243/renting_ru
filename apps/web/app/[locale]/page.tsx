@@ -37,10 +37,10 @@ export default async function HomePage({ params }: { params: { locale: string } 
         </h1>
         <p className="mt-3 max-w-lg text-brand-100">
           {locale === "ru"
-            ? "Авто с водителем и без — а скоро и недвижимость."
+            ? "Авто с водителем и без."
             : locale === "ar"
-              ? "سيارات مع سائق أو بدونه — والعقارات قريباً."
-              : "Cars with or without a chauffeur — real estate coming soon."}
+              ? "سيارات مع سائق أو بدونه."
+              : "Cars with or without a chauffeur."}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           {categories.map((c) => (
