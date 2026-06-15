@@ -4,7 +4,7 @@ RUN npm install -g pnpm@9.15.4
 WORKDIR /repo
 
 FROM base AS build
-COPY pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml package.json .npmrc ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 RUN pnpm install --frozen-lockfile=false --filter @renting/api --filter @renting/shared
