@@ -1,0 +1,48 @@
+name: renting_mobile
+description: Renting — mobile app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # HTTP
+  dio: ^5.4.0
+
+  # Secure storage
+  flutter_secure_storage: ^9.0.0
+
+  # Navigation
+  go_router: ^13.2.0
+
+  # Images
+  cached_network_image: ^3.3.1
+
+  # Date picker
+  table_calendar: ^3.1.0
+
+  # File / image picker (license upload)
+  image_picker: ^1.1.2
+
+  # i18n
+  intl: ^0.19.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
