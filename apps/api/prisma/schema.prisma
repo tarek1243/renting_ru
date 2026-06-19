@@ -196,8 +196,9 @@ model User {
   reviews        Review[]
   favorites      Favorite[]
   notifications  Notification[]
-  auditLogs      AuditLog[]      @relation("actor")
+  auditLogs      AuditLog[]         @relation("actor")
   redemptions    CouponRedemption[]
+  ownedListings  Listing[]          @relation("ListingOwner")
 
   @@map("users")
 }
@@ -379,6 +380,7 @@ model CategoryPricingUnit {
 model Listing {
   id           String        @id @default(uuid()) @db.Uuid
   categoryId   String        @map("category_id") @db.Uuid
+  ownerId      String?       @map("owner_id") @db.Uuid
   slug         String        @unique
   title        Json // I18nText
   description  Json? // I18nText
@@ -394,6 +396,7 @@ model Listing {
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
+  owner              User?               @relation("ListingOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   category           RentalCategory      @relation(fields: [categoryId], references: [id])
   location           Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
   media              ListingMedia[]
@@ -405,6 +408,7 @@ model Listing {
   favorites          Favorite[]
 
   @@index([categoryId, status])
+  @@index([ownerId])
   @@map("listings")
 }
 

@@ -6,7 +6,7 @@ import { storeSession } from "../../../lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@renting.ru");
+  const [identifier, setIdentifier] = useState("admin@renting.ru");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ export default function LoginPage() {
       const res = await fetch(`${BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       const body = await res.json();
       if (!body.success) {
@@ -54,7 +54,7 @@ export default function LoginPage() {
               <label className="label" htmlFor="email">Email</label>
               <input
                 id="email" type="email" className="input mt-1"
-                value={email} onChange={(e) => setEmail(e.target.value)}
+                value={identifier} onChange={(e) => setIdentifier(e.target.value)}
                 required autoFocus
               />
             </div>

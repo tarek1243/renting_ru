@@ -20,6 +20,10 @@ const dict = {
     chooseDriver: "Choose your chauffeur", anyDriver: "Best available", years: "yrs",
     noResults: "Nothing matches your filters", priceRange: "Price range", min: "Min", max: "Max",
     loading: "Loading…", save: "Save", uploaded: "Submitted for review", terms: "Terms", faq: "FAQ",
+    myListings: "My listings", listYourCar: "List your car", addListing: "Add listing",
+    listingTitle: "Listing title", pricePerDay: "Price / day", submitListing: "Submit listing",
+    listingSubmitted: "Submitted for review — we'll notify you once published.",
+    editListing: "Edit listing", deleteListing: "Delete", noListings: "No listings yet.",
   },
   ru: {
     home: "Главная", search: "Поиск", myBookings: "Мои бронирования", favorites: "Избранное",
@@ -37,6 +41,10 @@ const dict = {
     chooseDriver: "Выберите водителя", anyDriver: "Лучший доступный", years: "лет",
     noResults: "По фильтрам ничего не найдено", priceRange: "Цена", min: "Мин", max: "Макс",
     loading: "Загрузка…", save: "Сохранить", uploaded: "Отправлено на проверку", terms: "Условия", faq: "Вопросы",
+    myListings: "Мои объявления", listYourCar: "Разместить авто", addListing: "Добавить объявление",
+    listingTitle: "Название", pricePerDay: "Цена / день", submitListing: "Отправить",
+    listingSubmitted: "Отправлено на проверку — уведомим после публикации.",
+    editListing: "Редактировать", deleteListing: "Удалить", noListings: "Объявлений пока нет.",
   },
   ar: {
     home: "الرئيسية", search: "بحث", myBookings: "حجوزاتي", favorites: "المفضلة",

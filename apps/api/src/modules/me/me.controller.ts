@@ -1,13 +1,30 @@
 import { Body, Controller, Delete, Get, HttpStatus, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 import { ErrorCode } from "@renting/shared";
-import { IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, Length } from "class-validator";
+import { IsArray, IsDateString, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Length, Min } from "class-validator";
 import { AppException } from "../../common/app.exception";
 import { CryptoService } from "../../common/crypto.service";
 import { AuthUser, CurrentUser } from "../../common/decorators";
 import { pageParams, paginated } from "../../common/pagination";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BookingsService } from "../bookings/bookings.service";
+
+class CreateMyListingDto {
+  @ApiProperty() @IsUUID() categoryId!: string;
+  @ApiProperty({ example: "My Toyota Camry 2023" }) @IsString() @IsNotEmpty() title!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiProperty({ example: 55 }) @IsNumber() @Min(1) pricePerDay!: number;
+  @ApiPropertyOptional({ example: "USD", default: "USD" }) @IsOptional() @IsString() currency?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) photos?: string[];
+}
+
+class UpdateMyListingDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @IsNotEmpty() title?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) pricePerDay?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) photos?: string[];
+}
 
 class UpdateMeDto {
   @ApiPropertyOptional() @IsOptional() @IsString() firstName?: string;
@@ -206,5 +223,101 @@ export class MeController {
     });
     if (result.count === 0) throw AppException.notFound("Notification not found");
     return { read: true };
+  }
+
+  // ── customer-owned listings (marketplace) ──────────────
+
+  @Get("listings")
+  @ApiOperation({ summary: "My listings (as owner)" })
+  async myListings(@CurrentUser() user: AuthUser, @Query() query: Record<string, any>) {
+    const page = { skip: Number(query.page ?? 0) * Number(query.perPage ?? 20), take: Number(query.perPage ?? 20) };
+    const where = { ownerId: user.id };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.listing.findMany({
+        where, orderBy: { createdAt: "desc" }, skip: page.skip, take: page.take,
+        include: {
+          category: { select: { slug: true, name: true } },
+          prices: { select: { pricingUnit: true, currency: true, basePrice: true } },
+          media: { where: { isCover: true }, select: { url: true }, take: 1 },
+        },
+      }),
+      this.prisma.listing.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  @Post("listings")
+  @ApiOperation({ summary: "Create a listing (submitted as draft for admin review)" })
+  async createMyListing(@CurrentUser() user: AuthUser, @Body() dto: CreateMyListingDto) {
+    const category = await this.prisma.rentalCategory.findUnique({ where: { id: dto.categoryId } });
+    if (!category) throw AppException.notFound("Category not found");
+
+    const base = dto.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
+    const suffix = Math.random().toString(36).slice(2, 7);
+    const slug = `${base}-${suffix}`;
+
+    const listing = await this.prisma.listing.create({
+      data: {
+        categoryId: dto.categoryId,
+        ownerId: user.id,
+        slug,
+        title: { en: dto.title },
+        description: dto.description ? { en: dto.description } : undefined,
+        status: "draft",
+        attributes: {},
+        prices: { create: [{ pricingUnit: "day", currency: dto.currency ?? "USD", basePrice: dto.pricePerDay }] },
+        media: dto.photos?.length
+          ? { create: dto.photos.map((url, i) => ({ url, type: "image", sortOrder: i, isCover: i === 0 })) }
+          : undefined,
+      },
+      include: { prices: true, media: true },
+    });
+    return listing;
+  }
+
+  @Patch("listings/:id")
+  @ApiOperation({ summary: "Update my listing (only while draft)" })
+  async updateMyListing(@CurrentUser() user: AuthUser, @Param("id") id: string, @Body() dto: UpdateMyListingDto) {
+    const listing = await this.prisma.listing.findUnique({ where: { id } });
+    if (!listing || listing.ownerId !== user.id) throw AppException.notFound("Listing not found");
+    if (listing.status !== "draft") {
+      throw new AppException(ErrorCode.Conflict, "Only draft listings can be edited", HttpStatus.CONFLICT);
+    }
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.photos) {
+        await tx.listingMedia.deleteMany({ where: { listingId: id } });
+        if (dto.photos.length) {
+          await tx.listingMedia.createMany({
+            data: dto.photos.map((url, i) => ({ listingId: id, url, type: "image", sortOrder: i, isCover: i === 0 })),
+          });
+        }
+      }
+      if (dto.pricePerDay) {
+        await tx.listingPrice.deleteMany({ where: { listingId: id, pricingUnit: "day" } });
+        await tx.listingPrice.create({
+          data: { listingId: id, pricingUnit: "day", currency: dto.currency ?? "USD", basePrice: dto.pricePerDay },
+        });
+      }
+      return tx.listing.update({
+        where: { id },
+        data: {
+          ...(dto.title ? { title: { en: dto.title } } : {}),
+          ...(dto.description !== undefined ? { description: { en: dto.description } } : {}),
+        },
+        include: { prices: true, media: true },
+      });
+    });
+  }
+
+  @Delete("listings/:id")
+  @ApiOperation({ summary: "Delete my listing (only while draft)" })
+  async deleteMyListing(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    const listing = await this.prisma.listing.findUnique({ where: { id } });
+    if (!listing || listing.ownerId !== user.id) throw AppException.notFound("Listing not found");
+    if (listing.status !== "draft") {
+      throw new AppException(ErrorCode.Conflict, "Only draft listings can be deleted", HttpStatus.CONFLICT);
+    }
+    await this.prisma.listing.delete({ where: { id } });
+    return { deleted: true };
   }
 }
