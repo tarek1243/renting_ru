@@ -16,7 +16,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const BASE = (window as any).__API_URL__ ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+      const BASE = (window as any).__API_URL__ ?? process.env.NEXT_PUBLIC_API_URL ?? "https://rentingapi-production.up.railway.app/api/v1"; // "http://localhost:4000/api/v1"
       const res = await fetch(`${BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

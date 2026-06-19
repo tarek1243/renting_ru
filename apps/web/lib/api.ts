@@ -3,7 +3,7 @@ import type { ApiEnvelope } from "@renting/shared";
 export const API_URL =
   (typeof window !== "undefined" && (window as any).__API_URL__)
     ? (window as any).__API_URL__
-    : process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+    : process.env.NEXT_PUBLIC_API_URL ?? "https://rentingapi-production.up.railway.app/api/v1"; // "http://localhost:4000/api/v1"
 
 export class ApiError extends Error {
   constructor(
