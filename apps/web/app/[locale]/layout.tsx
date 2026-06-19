@@ -33,7 +33,7 @@ export default async function LocaleLayout({
 }) {
   const locale = isLocale(params.locale) ? params.locale : DEFAULT_LOCALE;
   const categories = await getCategories();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+  const apiUrl = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
   return (
     <html lang={locale} dir={RTL_LOCALES.has(locale) ? "rtl" : "ltr"}>
       <head>
