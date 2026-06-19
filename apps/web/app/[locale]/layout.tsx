@@ -33,8 +33,12 @@ export default async function LocaleLayout({
 }) {
   const locale = isLocale(params.locale) ? params.locale : DEFAULT_LOCALE;
   const categories = await getCategories();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
   return (
     <html lang={locale} dir={RTL_LOCALES.has(locale) ? "rtl" : "ltr"}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `window.__API_URL__=${JSON.stringify(apiUrl)}` }} />
+      </head>
       <body className="min-h-screen bg-gray-50 text-gray-900 antialiased">
         <Header
           locale={locale}

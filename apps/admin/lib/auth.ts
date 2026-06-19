@@ -32,12 +32,18 @@ export function getSession(): AdminSession | null {
   };
 }
 
+function getApiUrl(): string {
+  if (typeof window !== "undefined" && (window as any).__API_URL__) {
+    return (window as any).__API_URL__;
+  }
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+}
+
 export async function authedApi<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const BASE =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+  const BASE = getApiUrl();
   const token = localStorage.getItem("admin_access_token");
   const res = await fetch(`${BASE}${path}`, {
     ...init,
