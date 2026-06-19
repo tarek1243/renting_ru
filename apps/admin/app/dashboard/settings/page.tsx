@@ -5,9 +5,15 @@ import { authedApi } from "../../../lib/auth";
 
 interface Setting {
   key: string;
-  value: string;
+  value: unknown;
   description: string | null;
   isPublic: boolean;
+}
+
+function displayValue(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
 }
 
 const EDITABLE_KEYS = [
@@ -87,7 +93,7 @@ export default function SettingsPage() {
                   </div>
                   <input
                     className="input flex-1"
-                    value={editing[s.key] ?? s.value}
+                    value={editing[s.key] ?? displayValue(s.value)}
                     onChange={(e) =>
                       setEditing((prev) => ({ ...prev, [s.key]: e.target.value }))
                     }
@@ -117,7 +123,7 @@ export default function SettingsPage() {
                   {grouped.other.map((s) => (
                     <tr key={s.key}>
                       <td className="font-mono">{s.key}</td>
-                      <td className="max-w-xs truncate">{s.value}</td>
+                      <td className="max-w-xs truncate">{displayValue(s.value)}</td>
                       <td>{s.isPublic ? "Yes" : "No"}</td>
                     </tr>
                   ))}
