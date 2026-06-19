@@ -25,16 +25,26 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
  */
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<{ data: T; meta?: any }> {
   const { body, token, revalidate, headers, ...rest } = options;
-  const res = await fetch(`${API_URL}${path}`, {
-    ...rest,
-    headers: {
-      ...(body !== undefined ? { "content-type": "application/json" } : {}),
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    ...(typeof window === "undefined" ? { next: revalidate === false ? undefined : { revalidate: revalidate ?? 30 } } : {}),
-  });
+  const url = `${API_URL}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...rest,
+      headers: {
+        ...(body !== undefined ? { "content-type": "application/json" } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      ...(typeof window === "undefined" ? { next: revalidate === false ? undefined : { revalidate: revalidate ?? 30 } } : {}),
+    });
+  } catch (err: any) {
+    throw new ApiError(
+      "NETWORK_ERROR",
+      `Cannot reach API at ${url} — ${err?.message ?? "network error"}. Check NEXT_PUBLIC_API_URL and CORS_ORIGINS.`,
+      0,
+    );
+  }
   const envelope = (await res.json().catch(() => null)) as ApiEnvelope<T> | null;
   if (!envelope || !envelope.success) {
     throw new ApiError(
