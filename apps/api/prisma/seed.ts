@@ -62,6 +62,21 @@ async function main() {
     },
   });
 
+  // pre-approve a driver license for the demo customer so self-drive booking works
+  await prisma.driverLicense.upsert({
+    where: { userId: customer.id },
+    update: {},
+    create: {
+      userId: customer.id,
+      numberEncrypted: "demo-license-encrypted",
+      country: "US",
+      expiresOn: new Date("2030-01-01"),
+      frontImageUrl: "https://placehold.co/600x400?text=License",
+      status: "approved",
+      reviewedAt: new Date(),
+    },
+  });
+
   // ── Locations ───────────────────────────────────────────
   const locationsData = [
     { name: t("Downtown branch", "Центральный офис", "الفرع الرئيسي"), type: "branch" as const, city: "Moscow", countryCode: "RU", lat: 55.7558, lng: 37.6173 },

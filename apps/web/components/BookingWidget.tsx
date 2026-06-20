@@ -39,6 +39,7 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
   const [paymentMethod, setPaymentMethod] = useState<"online" | "on_pickup">("on_pickup");
   const [quote, setQuote] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [needsLicense, setNeedsLicense] = useState(false);
   const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState<any[]>([]);
 
@@ -113,11 +114,11 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
       router.push(`/${locale}/account/bookings/${booking.id}?created=1`);
     } catch (e: any) {
       if (e?.code === "LICENSE_REQUIRED") {
-        setError(`${e.message} →`);
-        router.push(`/${locale}/account?license=required`);
-        return;
+        setNeedsLicense(true);
+        setError(e.message ?? "A verified driver's license is required.");
+      } else {
+        setError(e.message ?? "Booking failed");
       }
-      setError(e.message ?? "Booking failed");
     } finally {
       setBusy(false);
     }
@@ -235,7 +236,16 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <p>{error}</p>
+          {needsLicense && (
+            <a href={`/${locale}/account`} className="mt-2 inline-block font-medium underline">
+              Submit your driver's license →
+            </a>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2 text-sm">
         <label className="flex flex-1 items-center gap-2">

@@ -2,27 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { authedApi } from "../../../lib/auth";
-import { LicenseStatus } from "@renting/shared";
 
 interface Customer {
   id: string;
-  name: string;
-  email: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
   phone: string | null;
-  isVerified: boolean;
+  status: string;
   createdAt: string;
-  license: {
-    id: string;
-    status: LicenseStatus;
-    expiresAt: string | null;
-  } | null;
+  license: { status: string; country: string; expiresOn: string | null } | null;
+  _count: { bookings: number };
 }
 
 const LICENSE_BADGE: Record<string, string> = {
-  pending: "badge-yellow",
-  approved: "badge-green",
-  rejected: "badge-red",
-  expired: "badge-gray",
+  pending: "bg-amber-50 text-amber-700",
+  approved: "bg-green-50 text-green-700",
+  rejected: "bg-red-50 text-red-700",
 };
 
 export default function CustomersPage() {
@@ -35,7 +31,7 @@ export default function CustomersPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await authedApi<any>(`/admin/customers?page=${page}&perPage=20`);
+      const res = await authedApi<any>(`/admin/customers?page=${page - 1}&perPage=20`);
       setCustomers(res.items ?? []);
       setTotal(res.total ?? 0);
     } catch (e: any) {
@@ -47,15 +43,12 @@ export default function CustomersPage() {
 
   useEffect(() => { load(); }, [page]); // eslint-disable-line
 
-  async function verifyLicense(licenseId: string, approve: boolean) {
-    setActionId(licenseId);
+  async function decideOnLicense(customerId: string, approve: boolean) {
+    setActionId(customerId);
     try {
-      await authedApi(`/admin/licenses/${licenseId}/verify`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          status: approve ? "approved" : "rejected",
-          notes: approve ? "Verified by admin" : "Rejected by admin",
-        }),
+      await authedApi(`/admin/customers/${customerId}/license/${approve ? "approve" : "reject"}`, {
+        method: "POST",
+        body: JSON.stringify(approve ? {} : { reason: "Rejected by admin" }),
       });
       await load();
     } catch (e: any) {
@@ -74,57 +67,53 @@ export default function CustomersPage() {
         <span className="text-sm text-gray-500">{total} total</span>
       </div>
       <div className="card overflow-hidden">
-        <table className="table-auto w-full">
+        <table className="w-full table-auto text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Verified</th>
-              <th>License</th>
-              <th>Joined</th>
-              <th>Actions</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500">Name</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500">Email</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500">Phone</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500">License</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500">Bookings</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500">Joined</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-500">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr><td colSpan={7} className="py-8 text-center text-gray-400">Loading…</td></tr>
+            ) : customers.length === 0 ? (
+              <tr><td colSpan={7} className="py-8 text-center text-gray-400">No customers yet.</td></tr>
             ) : customers.map((c) => (
               <tr key={c.id}>
-                <td className="font-medium">{c.name}</td>
-                <td className="text-xs text-gray-500">{c.email}</td>
-                <td className="text-xs">{c.phone ?? "—"}</td>
-                <td>
-                  <span className={c.isVerified ? "badge-green" : "badge-gray"}>
-                    {c.isVerified ? "Yes" : "No"}
-                  </span>
-                </td>
-                <td>
+                <td className="px-4 py-2 font-medium">{c.firstName} {c.lastName}</td>
+                <td className="px-4 py-2 text-xs text-gray-500">{c.email ?? "—"}</td>
+                <td className="px-4 py-2 text-xs">{c.phone ?? "—"}</td>
+                <td className="px-4 py-2">
                   {c.license ? (
-                    <span className={LICENSE_BADGE[c.license.status] ?? "badge-gray"}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LICENSE_BADGE[c.license.status] ?? "bg-gray-100 text-gray-500"}`}>
                       {c.license.status}
                     </span>
                   ) : (
-                    <span className="badge-gray">None</span>
+                    <span className="text-xs text-gray-400">None</span>
                   )}
                 </td>
-                <td className="text-xs">
-                  {new Date(c.createdAt).toLocaleDateString()}
-                </td>
-                <td>
+                <td className="px-4 py-2 text-center">{c._count.bookings}</td>
+                <td className="px-4 py-2 text-xs">{new Date(c.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-2">
                   {c.license?.status === "pending" && (
                     <div className="flex gap-1">
                       <button
-                        disabled={actionId === c.license.id}
-                        onClick={() => verifyLicense(c.license!.id, true)}
-                        className="btn-success px-2 py-1 text-xs"
+                        disabled={actionId === c.id}
+                        onClick={() => decideOnLicense(c.id, true)}
+                        className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-40"
                       >
                         Approve
                       </button>
                       <button
-                        disabled={actionId === c.license.id}
-                        onClick={() => verifyLicense(c.license!.id, false)}
-                        className="btn-danger px-2 py-1 text-xs"
+                        disabled={actionId === c.id}
+                        onClick={() => decideOnLicense(c.id, false)}
+                        className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-40"
                       >
                         Reject
                       </button>
@@ -139,11 +128,8 @@ export default function CustomersPage() {
       {pages > 1 && (
         <div className="flex gap-2">
           {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPage(p)}
-              className={p === page ? "btn-primary px-3 py-1" : "btn-secondary px-3 py-1"}
-            >
+            <button key={p} onClick={() => setPage(p)}
+              className={`rounded px-3 py-1 text-sm ${p === page ? "bg-indigo-600 text-white" : "border border-gray-200 text-gray-600"}`}>
               {p}
             </button>
           ))}
