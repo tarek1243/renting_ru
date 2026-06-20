@@ -286,9 +286,14 @@ async function main() {
 
   for (const [i, car] of fleet.entries()) {
     const images = CAR_IMAGES[car.slug] ?? [`https://placehold.co/1200x800?text=${encodeURIComponent((car.title as any).en)}`];
-    await prisma.listing.upsert({
+    const listing = await prisma.listing.upsert({
       where: { slug: car.slug },
-      update: {},
+      update: {
+        title: car.title,
+        attributes: car.attributes,
+        isFeatured: car.featured,
+        status: "active",
+      },
       create: {
         categoryId: cars.id,
         slug: car.slug,
@@ -301,15 +306,18 @@ async function main() {
         locationId: locations[i % locations.length].id,
         attributes: car.attributes,
         isFeatured: car.featured,
-        media: {
-          create: images.map((url, n) => ({ url, sortOrder: n, isCover: n === 0 })),
-        },
         prices: {
           create: Object.entries(car.prices).map(([unit, price]) => ({
             pricingUnit: unit as PricingUnit, currency: "SAR", basePrice: price,
           })),
         },
       },
+    });
+
+    // Always replace media so re-running the seed refreshes images
+    await prisma.listingMedia.deleteMany({ where: { listingId: listing.id } });
+    await prisma.listingMedia.createMany({
+      data: images.map((url, n) => ({ listingId: listing.id, url, sortOrder: n, isCover: n === 0 })),
     });
   }
 
