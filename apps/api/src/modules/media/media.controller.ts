@@ -1,9 +1,5 @@
-import {
-  Body, Controller, Get, HttpStatus, Param, Post, Res,
-  UploadedFile, UseInterceptors,
-} from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiProperty, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, HttpStatus, Param, Post, Res } from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { IsIn, IsString, Matches } from "class-validator";
 import { Response } from "express";
 import { AppException } from "../../common/app.exception";
@@ -20,8 +16,16 @@ class PresignDto {
   @IsIn(["image/jpeg", "image/png", "image/webp", "application/pdf"]) contentType!: string;
 }
 
+class UploadBase64Dto {
+  @ApiProperty({ description: "Data URL: data:<mime>;base64,<data>" })
+  @IsString() data!: string;
+
+  @ApiProperty({ example: "license-front.jpg" })
+  @IsString() name!: string;
+}
+
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_BYTES = 8 * 1024 * 1024; // 8 MB decoded
 
 @ApiTags("Media")
 @ApiBearerAuth()
@@ -33,26 +37,29 @@ export class MediaController {
   ) {}
 
   @Post("presign")
-  @ApiOperation({
-    summary: "Presigned S3 PUT for direct uploads (listing photos, license scans)",
-    description: "Upload with HTTP PUT to uploadUrl, then store publicUrl on the entity. Works for web and mobile identically.",
-  })
+  @ApiOperation({ summary: "Presigned S3 PUT for direct uploads (listing photos, license scans)" })
   presign(@CurrentUser() user: AuthUser, @Body() dto: PresignDto) {
     return this.media.presignUpload(user.id, dto.fileName, dto.contentType);
   }
 
   @Post("upload")
-  @ApiOperation({ summary: "Direct file upload — stores in DB and returns a public URL (no S3 required)" })
-  @ApiConsumes("multipart/form-data")
-  @ApiBody({ schema: { type: "object", properties: { file: { type: "string", format: "binary" } } } })
-  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: MAX_BYTES } }))
-  async upload(@CurrentUser() _user: AuthUser, @UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new AppException(ErrorCode.ValidationError, "No file provided", HttpStatus.BAD_REQUEST);
-    if (!ALLOWED_MIME.has(file.mimetype)) {
+  @ApiOperation({ summary: "Upload a file as a base64 data-URL — stored in DB, no S3 required" })
+  async upload(@CurrentUser() _user: AuthUser, @Body() dto: UploadBase64Dto) {
+    // expect: "data:image/jpeg;base64,/9j/..."
+    const match = dto.data.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!match) {
+      throw new AppException(ErrorCode.ValidationError, "data must be a base64 data URL", HttpStatus.BAD_REQUEST);
+    }
+    const [, mimeType, b64] = match;
+    if (!ALLOWED_MIME.has(mimeType)) {
       throw new AppException(ErrorCode.ValidationError, "Only JPEG, PNG, WEBP and PDF allowed", HttpStatus.BAD_REQUEST);
     }
+    const buffer = Buffer.from(b64, "base64");
+    if (buffer.byteLength > MAX_BYTES) {
+      throw new AppException(ErrorCode.ValidationError, "File exceeds 8 MB limit", HttpStatus.BAD_REQUEST);
+    }
     const blob = await this.prisma.mediaBlob.create({
-      data: { mimeType: file.mimetype, data: file.buffer },
+      data: { mimeType, data: buffer },
       select: { id: true },
     });
     return { url: `/api/v1/media/blobs/${blob.id}`, id: blob.id };
@@ -61,11 +68,11 @@ export class MediaController {
   @Public()
   @Get("blobs/:id")
   @ApiOperation({ summary: "Serve a stored media blob" })
-  async serveBlob(@Param("id") id: string, @Res() res: Response) {
+  async serveBlob(@Param("id") id: string, @Res({ passthrough: false }) res: Response) {
     const blob = await this.prisma.mediaBlob.findUnique({ where: { id } });
-    if (!blob) throw AppException.notFound("Media not found");
+    if (!blob) { res.status(404).json({ success: false, error: { message: "Not found" } }); return; }
     res.setHeader("content-type", blob.mimeType);
     res.setHeader("cache-control", "public, max-age=31536000, immutable");
-    res.send(blob.data);
+    res.end(blob.data);
   }
 }

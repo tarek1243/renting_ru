@@ -6,17 +6,24 @@ import { API_URL } from "../../../lib/api";
 import { authedApi, getAccessToken, getUser } from "../../../lib/auth";
 import { ui } from "../../../lib/i18n";
 
+function readAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function uploadFile(file: File, token: string | null): Promise<string> {
-  const form = new FormData();
-  form.append("file", file);
+  const data = await readAsDataURL(file);
   const res = await fetch(`${API_URL}/media/upload`, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ data, name: file.name }),
   });
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? "Upload failed");
-  // return absolute URL so it works cross-origin
   const raw: string = json.data.url;
   return raw.startsWith("http") ? raw : `${API_URL.replace("/api/v1", "")}${raw}`;
 }

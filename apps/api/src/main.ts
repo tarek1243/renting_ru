@@ -14,13 +14,13 @@ async function bootstrap() {
   // keep raw body for PSP webhook signature verification
   app.use(
     json({
-      limit: "2mb",
+      limit: "10mb",
       verify: (req: any, _res, buf) => {
         if (req.url?.includes("/payments/webhooks/")) req.rawBody = Buffer.from(buf);
       },
     }),
   );
-  app.use(urlencoded({ extended: true }));
+  app.use(urlencoded({ extended: true, limit: "10mb" }));
 
   app.use(helmet());
   app.enableCors({
