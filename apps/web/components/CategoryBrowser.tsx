@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, t } from "../lib/api";
 import { ui } from "../lib/i18n";
-import { ListingCard, type ListingSummary } from "./ListingCard";
+import { ListingCard, ListingCardSkeleton, type ListingSummary } from "./ListingCard";
 
 interface AttributeDef {
   key: string;
@@ -76,9 +76,7 @@ export function CategoryBrowser({
       })
       .catch(() => !cancelled && setItems([]))
       .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [schema.slug, buildQuery]);
 
   const setFilter = (key: string, value: FilterState[string]) => {
@@ -86,62 +84,94 @@ export function CategoryBrowser({
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  const clearAll = () => {
+    setFilters({});
+    setPrice({});
+    setLocation("");
+    setPage(1);
+  };
+
+  const totalPages = Math.ceil(total / 12);
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "") || price.min || price.max || location;
+
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
-      <aside className="card h-fit space-y-4 p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold">{T("filters")}</h2>
-          <button
-            className="text-xs text-brand-600 hover:underline"
-            onClick={() => {
-              setFilters({});
-              setPrice({});
-              setLocation("");
-              setPage(1);
-            }}
-          >
-            {T("clear")}
-          </button>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+      {/* ── Filter sidebar ─────────────────────────── */}
+      <aside className="h-fit space-y-0 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L13 10.414V17a1 1 0 01-.553.894l-4 2A1 1 0 017 19v-8.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+            </svg>
+            <h2 className="font-semibold text-gray-900">{T("filters")}</h2>
+          </div>
+          {hasActiveFilters && (
+            <button className="text-xs font-semibold text-brand-600 hover:underline" onClick={clearAll}>
+              {T("clear")}
+            </button>
+          )}
         </div>
 
-        <div>
-          <label className="label">{T("location")}</label>
-          <select className="input" value={location} onChange={(e) => { setLocation(e.target.value); setPage(1); }}>
-            <option value="">—</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{t(l.name, locale)}</option>
-            ))}
-          </select>
-        </div>
+        {/* Location */}
+        {locations.length > 0 && (
+          <div className="border-b border-gray-100 px-5 py-4">
+            <label className="label">{T("location")}</label>
+            <select className="input" value={location} onChange={(e) => { setLocation(e.target.value); setPage(1); }}>
+              <option value="">—</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>{t(l.name, locale)}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        <div>
+        {/* Price range */}
+        <div className="border-b border-gray-100 px-5 py-4">
           <label className="label">{T("priceRange")}</label>
-          <div className="flex gap-2">
-            <input className="input" type="number" placeholder={T("min")} value={price.min ?? ""}
-              onChange={(e) => { setPrice((p) => ({ ...p, min: e.target.value })); setPage(1); }} />
-            <input className="input" type="number" placeholder={T("max")} value={price.max ?? ""}
-              onChange={(e) => { setPrice((p) => ({ ...p, max: e.target.value })); setPage(1); }} />
+          <div className="flex items-center gap-2">
+            <input
+              className="input text-center"
+              type="number"
+              placeholder={T("min")}
+              value={price.min ?? ""}
+              onChange={(e) => { setPrice((p) => ({ ...p, min: e.target.value })); setPage(1); }}
+            />
+            <span className="text-gray-300">—</span>
+            <input
+              className="input text-center"
+              type="number"
+              placeholder={T("max")}
+              value={price.max ?? ""}
+              onChange={(e) => { setPrice((p) => ({ ...p, max: e.target.value })); setPage(1); }}
+            />
           </div>
         </div>
 
-        {filterableAttrs.map((attr) => (
-          <div key={attr.key}>
+        {/* Dynamic attribute filters */}
+        {filterableAttrs.map((attr, idx) => (
+          <div key={attr.key} className={`px-5 py-4 ${idx < filterableAttrs.length - 1 ? "border-b border-gray-100" : ""}`}>
             <label className="label">
-              {t(attr.label, locale)} {attr.unit ? `(${attr.unit})` : ""}
+              {t(attr.label, locale)}{attr.unit ? ` (${attr.unit})` : ""}
             </label>
             {attr.filterWidget === "range" ? (
-              <div className="flex gap-2">
-                <input className="input" type="number" placeholder={String(attr.validation?.min ?? "")}
+              <div className="flex items-center gap-2">
+                <input className="input text-center" type="number" placeholder={String(attr.validation?.min ?? "")}
                   value={(filters[attr.key] as any)?.min ?? ""}
                   onChange={(e) => setFilter(attr.key, { ...(filters[attr.key] as any), min: e.target.value })} />
-                <input className="input" type="number" placeholder={String(attr.validation?.max ?? "")}
+                <span className="text-gray-300">—</span>
+                <input className="input text-center" type="number" placeholder={String(attr.validation?.max ?? "")}
                   value={(filters[attr.key] as any)?.max ?? ""}
                   onChange={(e) => setFilter(attr.key, { ...(filters[attr.key] as any), max: e.target.value })} />
               </div>
             ) : attr.filterWidget === "toggle" ? (
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={filters[attr.key] === "true"}
-                  onChange={(e) => setFilter(attr.key, e.target.checked ? "true" : "")} />
+              <label className="flex cursor-pointer items-center gap-3 text-sm text-gray-700">
+                <div
+                  className={`relative h-5 w-9 rounded-full transition-colors ${filters[attr.key] === "true" ? "bg-brand-600" : "bg-gray-200"}`}
+                  onClick={() => setFilter(attr.key, filters[attr.key] === "true" ? "" : "true")}
+                >
+                  <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${filters[attr.key] === "true" ? "translate-x-4" : "translate-x-0.5"}`} />
+                </div>
                 {t(attr.label, locale)}
               </label>
             ) : (
@@ -157,23 +187,80 @@ export function CategoryBrowser({
         ))}
       </aside>
 
+      {/* ── Results ───────────────────────────────────── */}
       <section>
+        {/* Results count */}
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            {loading ? (
+              <span className="skeleton inline-block h-4 w-24 rounded" />
+            ) : (
+              <span>
+                <strong className="font-semibold text-gray-900">{total}</strong>{" "}
+                {locale === "ar" ? "نتيجة" : locale === "ru" ? "объявлений" : total === 1 ? "listing" : "listings"}
+              </span>
+            )}
+          </p>
+        </div>
+
         {loading ? (
-          <p className="py-20 text-center text-gray-400">{T("loading")}</p>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => <ListingCardSkeleton key={i} />)}
+          </div>
         ) : items.length === 0 ? (
-          <p className="py-20 text-center text-gray-400">{T("noResults")}</p>
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <svg className="mb-4 h-16 w-16 text-gray-200" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z" />
+            </svg>
+            <p className="text-lg font-semibold text-gray-400">{T("noResults")}</p>
+            <button onClick={clearAll} className="mt-4 text-sm font-semibold text-brand-600 hover:underline">{T("clear")}</button>
+          </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} locale={locale} cardAttributes={cardAttrs} />
               ))}
             </div>
-            {total > 12 && (
-              <div className="mt-6 flex justify-center gap-2">
-                <button className="btn-secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>←</button>
-                <span className="px-3 py-2 text-sm text-gray-500">{page} / {Math.ceil(total / 12)}</span>
-                <button className="btn-secondary" disabled={page >= Math.ceil(total / 12)} onClick={() => setPage((p) => p + 1)}>→</button>
+
+            {totalPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-2">
+                <button
+                  className="btn-secondary !px-3 !py-2 disabled:opacity-30"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  ←
+                </button>
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                    .reduce<(number | "…")[]>((acc, p, i, arr) => {
+                      if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, i) =>
+                      p === "…" ? (
+                        <span key={`e${i}`} className="px-2 py-2 text-sm text-gray-400">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`h-9 w-9 rounded-xl text-sm font-semibold transition ${p === page ? "bg-brand-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                </div>
+                <button
+                  className="btn-secondary !px-3 !py-2 disabled:opacity-30"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  →
+                </button>
               </div>
             )}
           </>

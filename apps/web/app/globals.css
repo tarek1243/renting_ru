@@ -2,20 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes skeleton-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(200%); }
+}
+
+@layer base {
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body { color: #111827; }
+}
+
 @layer components {
+  /* ── Buttons ─────────────────────────────────── */
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 active:scale-[0.97] disabled:opacity-50;
   }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700 active:scale-[0.97] disabled:opacity-50;
+  }
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-green-700 active:scale-[0.97] disabled:opacity-50;
+  }
+
+  /* ── Form ────────────────────────────────────── */
   .input {
-    @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
-  }
-  .card {
-    @apply rounded-xl border border-gray-200 bg-white shadow-sm;
+    @apply w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
   }
   .label {
-    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500;
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-widest text-gray-400;
   }
+
+  /* ── Card ────────────────────────────────────── */
+  .card {
+    @apply rounded-2xl border border-gray-100 bg-white shadow-sm;
+  }
+
+  /* ── Skeleton ────────────────────────────────── */
+  .skeleton {
+    @apply relative overflow-hidden bg-gray-100;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55) 50%, transparent);
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* ── Badges ──────────────────────────────────── */
+  .badge        { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
+  .badge-green  { @apply badge bg-green-50  text-green-700;  }
+  .badge-amber  { @apply badge bg-amber-50  text-amber-700;  }
+  .badge-yellow { @apply badge bg-amber-50  text-amber-700;  }
+  .badge-red    { @apply badge bg-red-50    text-red-700;    }
+  .badge-blue   { @apply badge bg-blue-50   text-blue-700;   }
+  .badge-gray   { @apply badge bg-gray-100  text-gray-600;   }
+  .badge-indigo { @apply badge bg-indigo-50 text-indigo-700; }
 }
