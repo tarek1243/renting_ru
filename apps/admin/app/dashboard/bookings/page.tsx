@@ -13,7 +13,7 @@ interface Booking {
   currency: string;
   startAt: string;
   endAt: string;
-  customer: { name: string; email: string } | null;
+  customer: { firstName: string; lastName: string; email: string } | null;
   listing: { title: object } | null;
 }
 
@@ -111,7 +111,7 @@ export default function BookingsPage() {
               return (
                 <tr key={b.id}>
                   <td className="font-mono text-xs">{b.code}</td>
-                  <td>{b.customer?.name ?? "—"}</td>
+                  <td>{b.customer ? `${b.customer.firstName} ${b.customer.lastName}` : "—"}</td>
                   <td className="max-w-[140px] truncate">
                     {typeof b.listing?.title === "object"
                       ? (b.listing.title as any).en

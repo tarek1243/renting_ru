@@ -60,5 +60,10 @@ export async function authedApi<T>(
   }
   const body = await res.json();
   if (!body.success) throw new Error(body.error?.message ?? "API error");
+  // For paginated responses the envelope puts items in data and counts in meta.
+  // Return { items, total } so callers can use res.items / res.total consistently.
+  if (body.meta?.pagination && Array.isArray(body.data)) {
+    return { items: body.data, total: body.meta.pagination.total } as unknown as T;
+  }
   return body.data as T;
 }
