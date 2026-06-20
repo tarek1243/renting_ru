@@ -727,6 +727,15 @@ model Favorite {
   @@map("favorites")
 }
 
+model MediaBlob {
+  id        String   @id @default(uuid()) @db.Uuid
+  mimeType  String   @map("mime_type")
+  data      Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("media_blobs")
+}
+
 model Location {
   id          String       @id @default(uuid()) @db.Uuid
   name        Json // I18nText

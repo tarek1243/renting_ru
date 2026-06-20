@@ -1,18 +1,41 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { authedApi, getUser } from "../../../lib/auth";
+import { useEffect, useRef, useState } from "react";
+import { API_URL } from "../../../lib/api";
+import { authedApi, getAccessToken, getUser } from "../../../lib/auth";
 import { ui } from "../../../lib/i18n";
+
+async function uploadFile(file: File, token: string | null): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/media/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? "Upload failed");
+  // return absolute URL so it works cross-origin
+  const raw: string = json.data.url;
+  return raw.startsWith("http") ? raw : `${API_URL.replace("/api/v1", "")}${raw}`;
+}
 
 export default function AccountPage() {
   const { locale } = useParams<{ locale: string }>();
   const T = ui(locale);
   const router = useRouter();
   const [profile, setProfile] = useState<any | null>(null);
-  const [license, setLicense] = useState({ number: "", country: "RU", expiresOn: "", frontImageUrl: "" });
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseCountry, setLicenseCountry] = useState("RU");
+  const [licenseExpiry, setLicenseExpiry] = useState("");
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const frontRef = useRef<HTMLInputElement>(null);
+  const backRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!getUser()) {
@@ -36,18 +59,27 @@ export default function AccountPage() {
   };
 
   const submitLicense = async () => {
+    if (!licenseNumber || !licenseExpiry || !frontFile) {
+      setError("License number, expiry date and front image are required.");
+      return;
+    }
     setError(null);
+    setUploading(true);
     try {
-      // In production the image goes to S3 via POST /media/presign; a URL field keeps local dev simple.
+      const token = getAccessToken();
+      const frontUrl = await uploadFile(frontFile, token);
+      const backUrl = backFile ? await uploadFile(backFile, token) : undefined;
       await authedApi("/me/license", {
         method: "POST",
-        body: { ...license, frontImageUrl: license.frontImageUrl || "https://example.com/license-front.jpg" },
+        body: { number: licenseNumber, country: licenseCountry, expiresOn: licenseExpiry, frontImageUrl: frontUrl, backImageUrl: backUrl },
       });
       setMessage(T("uploaded"));
       const { data } = await authedApi<any>("/me");
       setProfile(data);
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -80,7 +112,7 @@ export default function AccountPage() {
         <button className="btn-primary" onClick={saveProfile}>{T("save")}</button>
       </section>
 
-      <section className="card space-y-3 p-6">
+      <section className="card space-y-4 p-6">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">{T("license")}</h2>
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -91,15 +123,69 @@ export default function AccountPage() {
             {licenseStatus}
           </span>
         </div>
-        {profile.license?.rejectReason && <p className="text-sm text-red-600">{profile.license.rejectReason}</p>}
+
+        {profile.license?.rejectReason && (
+          <p className="text-sm text-red-600">{profile.license.rejectReason}</p>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
-          <input className="input" placeholder="License number" value={license.number} onChange={(e) => setLicense({ ...license, number: e.target.value })} />
-          <input className="input" placeholder="Country (RU)" value={license.country} onChange={(e) => setLicense({ ...license, country: e.target.value })} />
-          <input className="input" type="date" value={license.expiresOn} onChange={(e) => setLicense({ ...license, expiresOn: e.target.value })} />
-          <input className="input" placeholder="Front image URL" value={license.frontImageUrl} onChange={(e) => setLicense({ ...license, frontImageUrl: e.target.value })} />
+          <div>
+            <label className="label">License number</label>
+            <input className="input" placeholder="AB123456" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Country</label>
+            <input className="input" placeholder="RU" maxLength={2} value={licenseCountry} onChange={(e) => setLicenseCountry(e.target.value.toUpperCase())} />
+          </div>
+          <div>
+            <label className="label">Expiry date</label>
+            <input className="input" type="date" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} />
+          </div>
         </div>
-        <button className="btn-secondary" onClick={submitLicense} disabled={!license.number || !license.expiresOn}>
-          {T("save")}
+
+        {/* Front image */}
+        <div>
+          <label className="label">Front side <span className="text-red-500">*</span></label>
+          <div
+            className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-6 transition hover:border-brand-400"
+            onClick={() => frontRef.current?.click()}
+          >
+            {frontFile ? (
+              <p className="text-sm font-medium text-brand-600">{frontFile.name}</p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500">Click to attach front of license</p>
+                <p className="text-xs text-gray-400">JPEG, PNG, WEBP or PDF · max 10 MB</p>
+              </>
+            )}
+          </div>
+          <input ref={frontRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+            onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)} />
+        </div>
+
+        {/* Back image */}
+        <div>
+          <label className="label">Back side <span className="text-gray-400 text-xs">(optional)</span></label>
+          <div
+            className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-6 transition hover:border-brand-400"
+            onClick={() => backRef.current?.click()}
+          >
+            {backFile ? (
+              <p className="text-sm font-medium text-brand-600">{backFile.name}</p>
+            ) : (
+              <p className="text-sm text-gray-500">Click to attach back of license</p>
+            )}
+          </div>
+          <input ref={backRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+            onChange={(e) => setBackFile(e.target.files?.[0] ?? null)} />
+        </div>
+
+        <button
+          className="btn-secondary"
+          onClick={submitLicense}
+          disabled={uploading || !licenseNumber || !licenseExpiry || !frontFile}
+        >
+          {uploading ? "Uploading…" : T("save")}
         </button>
       </section>
 
