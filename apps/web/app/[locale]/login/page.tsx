@@ -65,7 +65,7 @@ function LoginForm() {
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900">{T("login")}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            {locale === "ar" ? "مرحباً بك مجدداً" : locale === "ru" ? "Добро пожаловать обратно" : "Welcome back"}
+            {locale === "ar" ? "مرحباً بك مجدداً" : "Welcome back"}
           </p>
         </div>
 
@@ -150,7 +150,7 @@ function LoginForm() {
           </button>
 
           <p className="text-center text-sm text-gray-500">
-            {locale === "ar" ? "ليس لديك حساب؟" : locale === "ru" ? "Нет аккаунта?" : "Don't have an account?"}{" "}
+            {locale === "ar" ? "ليس لديك حساب؟" : "Don't have an account?"}{" "}
             <Link href={`/${locale}/register`} className="font-semibold text-brand-600 hover:underline">
               {T("register")}
             </Link>

@@ -17,12 +17,6 @@ const LINKS: Record<string, Record<string, { href: string; label: string }[]>> =
       { href: "/en/account/bookings", label: "My bookings" },
       { href: "/en/account", label: "My account" },
     ],
-    ru: [
-      { href: "/ru", label: "Главная" },
-      { href: "/ru/cars", label: "Автомобили" },
-      { href: "/ru/account/bookings", label: "Мои бронирования" },
-      { href: "/ru/account", label: "Аккаунт" },
-    ],
     ar: [
       { href: "/ar", label: "الرئيسية" },
       { href: "/ar/cars", label: "السيارات" },
@@ -36,11 +30,6 @@ const LINKS: Record<string, Record<string, { href: string; label: string }[]>> =
       { href: "/en/pages/terms", label: "Terms of use" },
       { href: "/en/pages/privacy", label: "Privacy policy" },
     ],
-    ru: [
-      { href: "/ru/faq", label: "Вопросы" },
-      { href: "/ru/pages/terms", label: "Условия использования" },
-      { href: "/ru/pages/privacy", label: "Политика конфиденциальности" },
-    ],
     ar: [
       { href: "/ar/faq", label: "الأسئلة الشائعة" },
       { href: "/ar/pages/terms", label: "شروط الاستخدام" },
@@ -50,8 +39,8 @@ const LINKS: Record<string, Record<string, { href: string; label: string }[]>> =
 };
 
 const SECTION_TITLES: Record<string, Record<string, string>> = {
-  explore: { en: "Explore", ru: "Навигация", ar: "استكشف" },
-  support: { en: "Support", ru: "Поддержка", ar: "الدعم" },
+  explore: { en: "Explore", ar: "استكشف" },
+  support: { en: "Support", ar: "الدعم" },
 };
 
 export function Footer({ locale }: { locale: string }) {
@@ -72,8 +61,6 @@ export function Footer({ locale }: { locale: string }) {
             <p className="mt-3 max-w-xs text-sm text-gray-500">
               {locale === "ar"
                 ? "استأجر سيارة بثقة. مع سائق أو بدونه."
-                : locale === "ru"
-                ? "Аренда авто с уверенностью. С водителем или без."
                 : "Rent with confidence. Cars with or without a chauffeur."}
             </p>
             {/* Trust badges */}

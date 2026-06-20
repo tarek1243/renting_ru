@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export function generateStaticParams() {
-  return [{ locale: "en" }, { locale: "ru" }, { locale: "ar" }];
+  return [{ locale: "en" }, { locale: "ar" }];
 }
 
 async function getCategories() {

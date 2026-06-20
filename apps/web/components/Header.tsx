@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { clearSession, getUser, type SessionUser } from "../lib/auth";
 import { LOCALES, ui } from "../lib/i18n";
 
-const LOCALE_LABELS: Record<string, string> = { en: "EN", ru: "RU", ar: "AR" };
+const LOCALE_LABELS: Record<string, string> = { en: "EN", ar: "AR" };
 
 function CarIcon() {
   return (

@@ -14,15 +14,14 @@ interface CategorySummary {
 
 const HERO_TEXT: Record<string, { h1: string; sub: string }> = {
   en: { h1: "Rent a car in minutes", sub: "Self-drive or with a chauffeur. Instant confirmation." },
-  ru: { h1: "Аренда авто за минуты", sub: "С водителем или без. Мгновенное подтверждение." },
   ar: { h1: "استأجر سيارة في دقائق", sub: "بسائق أو بدونه. تأكيد فوري." },
 };
 
 const STATS = [
-  { value: "500+", label: { en: "Vehicles", ru: "Автомобилей", ar: "مركبة" } },
-  { value: "4.9★", label: { en: "Avg. rating", ru: "Средний рейтинг", ar: "متوسط التقييم" } },
-  { value: "Free", label: { en: "Cancellation", ru: "Отмена бесплатно", ar: "إلغاء مجاني" } },
-  { value: "24/7", label: { en: "Support", ru: "Поддержка", ar: "الدعم" } },
+  { value: "500+", label: { en: "Vehicles", ar: "مركبة" } },
+  { value: "4.9★", label: { en: "Avg. rating", ar: "متوسط التقييم" } },
+  { value: "Free", label: { en: "Cancellation", ar: "إلغاء مجاني" } },
+  { value: "24/7", label: { en: "Support", ar: "الدعم" } },
 ];
 
 export default async function HomePage({ params }: { params: { locale: string } }) {
@@ -54,7 +53,7 @@ export default async function HomePage({ params }: { params: { locale: string } 
         <div className="relative">
           <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium backdrop-blur-sm">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
-            {locale === "ar" ? "متاح الآن" : locale === "ru" ? "Доступно сейчас" : "Available now"}
+            {locale === "ar" ? "متاح الآن" : "Available now"}
           </p>
           <h1 className="max-w-xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
             {hero.h1}
@@ -100,7 +99,7 @@ export default async function HomePage({ params }: { params: { locale: string } 
           <div className="mb-6 flex items-end justify-between">
             <div>
               <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand-600">
-                {locale === "ar" ? "مميز" : locale === "ru" ? "Лучшее" : "Editor's pick"}
+                {locale === "ar" ? "مميز" : "Editor's pick"}
               </p>
               <h2 className="text-2xl font-bold text-gray-900">{T("featured")}</h2>
             </div>
@@ -125,26 +124,23 @@ export default async function HomePage({ params }: { params: { locale: string } 
       {/* ── How it works ──────────────────────────────── */}
       <section className="rounded-3xl bg-gray-50 px-8 py-12">
         <h2 className="mb-8 text-center text-2xl font-bold">
-          {locale === "ar" ? "كيف يعمل؟" : locale === "ru" ? "Как это работает?" : "How it works"}
+          {locale === "ar" ? "كيف يعمل؟" : "How it works"}
         </h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {[
             {
               step: "1",
               en: ["Choose your car", "Browse hundreds of verified cars across categories."],
-              ru: ["Выберите авто", "Сотни проверенных машин на любой вкус."],
               ar: ["اختر سيارتك", "مئات السيارات الموثقة من جميع الفئات."],
             },
             {
               step: "2",
               en: ["Confirm in seconds", "Pick your dates, extras, and pay your way."],
-              ru: ["Подтвердите за секунды", "Выберите даты, дополнения и способ оплаты."],
               ar: ["أكّد في ثوانٍ", "اختر المواعيد والإضافات وطريقة الدفع."],
             },
             {
               step: "3",
               en: ["Enjoy the ride", "Pick up your car and go. We're here 24/7."],
-              ru: ["Наслаждайтесь поездкой", "Заберите авто и отправляйтесь. Мы всегда на связи."],
               ar: ["استمتع بالرحلة", "استلم سيارتك وانطلق. نحن معك على مدار الساعة."],
             },
           ].map((item) => {

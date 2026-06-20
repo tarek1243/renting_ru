@@ -197,7 +197,7 @@ export function CategoryBrowser({
             ) : (
               <span>
                 <strong className="font-semibold text-gray-900">{total}</strong>{" "}
-                {locale === "ar" ? "نتيجة" : locale === "ru" ? "объявлений" : total === 1 ? "listing" : "listings"}
+                {locale === "ar" ? "نتيجة" : total === 1 ? "listing" : "listings"}
               </span>
             )}
           </p>

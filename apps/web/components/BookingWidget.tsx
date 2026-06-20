@@ -356,7 +356,7 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
             {busy ? T("loading") : T("confirmBooking")}
           </button>
           <p className="mt-2.5 text-center text-xs text-gray-400">
-            {locale === "ar" ? "إلغاء مجاني قبل 24 ساعة" : locale === "ru" ? "Бесплатная отмена за 24 часа" : "Free cancellation up to 24 h before pickup"}
+            {locale === "ar" ? "إلغاء مجاني قبل 24 ساعة" : "Free cancellation up to 24 h before pickup"}
           </p>
         </div>
       </div>
