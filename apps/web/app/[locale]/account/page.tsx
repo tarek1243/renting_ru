@@ -34,8 +34,10 @@ export default function AccountPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<any | null>(null);
   const [licenseNumber, setLicenseNumber] = useState("");
-  const [licenseCountry, setLicenseCountry] = useState("RU");
-  const [licenseExpiry, setLicenseExpiry] = useState("");
+  const [licenseCountry, setLicenseCountry] = useState("SA");
+  const defaultExpiry = new Date();
+  defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 5);
+  const [licenseExpiry, setLicenseExpiry] = useState(defaultExpiry.toISOString().slice(0, 10));
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
   const frontRef = useRef<HTMLInputElement>(null);
