@@ -36,6 +36,11 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
   const [selectedExtras, setSelectedExtras] = useState<Record<string, boolean>>({});
   const [couponCode, setCouponCode] = useState("");
   const [pickupLocationId, setPickupLocationId] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [dropoffAddress, setDropoffAddress] = useState("");
+  const [recurring, setRecurring] = useState(false);
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([0, 1, 2, 3, 4]);
+  const [repeatUntil, setRepeatUntil] = useState(toInput(new Date(tomorrow.getTime() + 30 * 86400_000)).slice(0, 10));
   const [paymentMethod, setPaymentMethod] = useState<"online" | "on_pickup">("on_pickup");
   const [quote, setQuote] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +96,10 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
     setBusy(true);
     setError(null);
     try {
-      const { data: booking } = await authedApi<any>("/bookings", {
+      if (recurring && (!pickupAddress.trim() || !dropoffAddress.trim())) {
+        throw new Error(locale === "ar" ? "أدخل عنواني نقطة الانطلاق والوجهة" : "Enter both pickup and destination addresses");
+      }
+      const { data: result } = await authedApi<any>(recurring ? "/bookings/recurring" : "/bookings", {
         method: "POST",
         body: {
           listingId: listing.id,
@@ -106,8 +114,16 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
           couponCode: couponCode || undefined,
           paymentMethod,
           pickupLocationId: pickupLocationId || undefined,
+          pickupAddress: pickupAddress.trim() || undefined,
+          dropoffAddress: dropoffAddress.trim() || undefined,
+          ...(recurring ? {
+            daysOfWeek,
+            repeatUntil,
+            timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+          } : {}),
         },
       });
+      const booking = recurring ? result.bookings[0] : result;
       router.push(`/${locale}/account/bookings/${booking.id}?created=1`);
     } catch (e: any) {
       if (e?.code === "LICENSE_REQUIRED") {
@@ -175,6 +191,43 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
           )}
         </div>
 
+        {/* ── Recurring schedule ───────────────────── */}
+        <div className="border-b border-gray-100 p-5 space-y-3">
+          <label className="flex cursor-pointer items-center justify-between gap-3">
+            <span>
+              <span className="block text-sm font-semibold text-gray-800">
+                {locale === "ar" ? "رحلة متكررة" : "Repeat this trip"}
+              </span>
+              <span className="text-xs text-gray-500">
+                {locale === "ar" ? "مثلاً: كل يوم دراسي" : "For school days, work commutes, and more"}
+              </span>
+            </span>
+            <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} className="h-5 w-5" />
+          </label>
+          {recurring && (
+            <div className="space-y-3 rounded-xl bg-gray-50 p-3">
+              <div>
+                <label className="label">{locale === "ar" ? "أيام الرحلة" : "Trip days"}</label>
+                <div className="grid grid-cols-7 gap-1">
+                  {(locale === "ar" ? ["ح", "ن", "ث", "ر", "خ", "ج", "س"] : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]).map((label, day) => (
+                    <button key={day} type="button" onClick={() => setDaysOfWeek((current) => current.includes(day) ? current.filter((d) => d !== day) : [...current, day])}
+                      className={`rounded-lg py-2 text-xs font-semibold ${daysOfWeek.includes(day) ? "bg-brand-600 text-white" : "border border-gray-200 bg-white text-gray-600"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="label">{locale === "ar" ? "كرر حتى" : "Repeat until"}</label>
+                <input type="date" className="input" value={repeatUntil} min={startAt.slice(0, 10)} onChange={(e) => setRepeatUntil(e.target.value)} />
+              </div>
+              <p className="text-xs text-gray-500">
+                {locale === "ar" ? "سيتم إنشاء حجز مستقل لكل رحلة (بحد أقصى 90)." : "Each trip is a separate booking (up to 90), so it can be managed individually."}
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* ── Location ───────────────────────────────── */}
         {locations.length > 0 && (
           <div className="border-b border-gray-100 p-5">
@@ -187,6 +240,19 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
             </select>
           </div>
         )}
+
+        <div className="border-b border-gray-100 p-5 space-y-3">
+          <div>
+            <label className="label">{locale === "ar" ? "عنوان الانطلاق" : "Pickup address"}</label>
+            <input className="input" value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)}
+              placeholder={locale === "ar" ? "مثال: مدرسة XXX" : "e.g. XXX School, main gate"} />
+          </div>
+          <div>
+            <label className="label">{locale === "ar" ? "عنوان الوجهة" : "Destination address"}</label>
+            <input className="input" value={dropoffAddress} onChange={(e) => setDropoffAddress(e.target.value)}
+              placeholder={locale === "ar" ? "مثال: المنزل، حي 1" : "e.g. Home, District 1"} />
+          </div>
+        </div>
 
         {/* ── Driver option ──────────────────────────── */}
         {config.requiresDriverOption && (

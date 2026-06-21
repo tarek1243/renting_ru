@@ -24,6 +24,11 @@ export interface CreateBookingInput {
   paymentMethod: "online" | "on_pickup";
   pickupLocationId?: string;
   dropoffLocationId?: string;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  recurringSeriesId?: string;
+  /** Internal: recurring creation publishes only after every occurrence succeeds. */
+  deferCreatedEvents?: boolean;
   customerNotes?: string;
 }
 
@@ -99,6 +104,9 @@ export class BookingsService {
             unitQuantity: quote.unitQuantity,
             pickupLocationId: input.pickupLocationId,
             dropoffLocationId: input.dropoffLocationId,
+            pickupAddress: input.pickupAddress,
+            dropoffAddress: input.dropoffAddress,
+            recurringSeriesId: input.recurringSeriesId,
             withDriver: input.withDriver ?? false,
             driverId: input.withDriver ? quote.driverId : null,
             baseAmount: quote.baseAmount,
@@ -157,12 +165,16 @@ export class BookingsService {
       throw e;
     }
 
-    this.notifications.queue(customerId, "email", "booking_created", this.notifyVars(booking, listing));
-    this.notifications.queue(customerId, "sms", "booking_created", this.notifyVars(booking, listing));
+    const result = await this.getForCustomer(booking.id, customerId);
+    if (!input.deferCreatedEvents) this.publishCreated(result, customerId);
+    return result;
+  }
+
+  publishCreated(booking: any, customerId: string) {
+    this.notifications.queue(customerId, "email", "booking_created", this.notifyVars(booking, booking.listing));
+    this.notifications.queue(customerId, "sms", "booking_created", this.notifyVars(booking, booking.listing));
     this.webhooks.emit(WebhookEvent.BookingCreated, this.webhookPayload(booking));
     this.audit.log({ actorId: customerId, action: "booking.create", entityType: "booking", entityId: booking.id });
-
-    return this.getForCustomer(booking.id, customerId);
   }
 
   // ── reads ──────────────────────────────────────────────

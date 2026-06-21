@@ -556,6 +556,9 @@ model Booking {
   unitQuantity          Int           @map("unit_quantity")
   pickupLocationId      String?       @map("pickup_location_id") @db.Uuid
   dropoffLocationId     String?       @map("dropoff_location_id") @db.Uuid
+  pickupAddress         String?       @map("pickup_address")
+  dropoffAddress        String?       @map("dropoff_address")
+  recurringSeriesId     String?       @map("recurring_series_id") @db.Uuid
   withDriver            Boolean       @default(false) @map("with_driver")
   driverId              String?       @map("driver_id") @db.Uuid
   baseAmount            Decimal       @map("base_amount") @db.Decimal(12, 2)
@@ -593,6 +596,7 @@ model Booking {
   @@index([customerId, status])
   @@index([listingId, startAt])
   @@index([status, startAt])
+  @@index([recurringSeriesId, startAt])
   @@map("bookings")
 }
 

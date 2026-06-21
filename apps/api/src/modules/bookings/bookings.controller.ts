@@ -2,9 +2,10 @@ import { Body, Controller, Get, HttpStatus, Param, Patch, Post } from "@nestjs/c
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags, PartialType } from "@nestjs/swagger";
 import { ErrorCode, PaymentMethod, PricingUnit } from "@renting/shared";
 import { Type } from "class-transformer";
+import { randomUUID } from "crypto";
 import {
-  ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional,
-  IsString, IsUUID, Max, Min, ValidateNested,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional,
+  IsString, IsUUID, Max, MaxLength, Min, ValidateNested,
 } from "class-validator";
 import { AppException } from "../../common/app.exception";
 import { AuthUser, CurrentUser } from "../../common/decorators";
@@ -33,6 +34,19 @@ class CreateBookingDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() pickupLocationId?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() dropoffLocationId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() customerNotes?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) pickupAddress?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) dropoffAddress?: string;
+}
+
+class CreateRecurringBookingDto extends CreateBookingDto {
+  @ApiProperty({ type: [Number], example: [0, 1, 2, 3, 4], description: "0=Sunday through 6=Saturday" })
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(7) @IsInt({ each: true }) @Min(0, { each: true }) @Max(6, { each: true })
+  daysOfWeek!: number[];
+
+  @ApiProperty({ example: "2026-12-17" }) @IsDateString() repeatUntil!: string;
+
+  @ApiPropertyOptional({ description: "Browser Date.getTimezoneOffset() value" })
+  @IsOptional() @IsInt() @Min(-840) @Max(840) timezoneOffsetMinutes?: number;
 }
 
 class ModifyBookingDto extends PartialType(CreateBookingDto) {}
@@ -72,6 +86,69 @@ export class BookingsController {
       startAt: new Date(dto.startAt),
       endAt: new Date(dto.endAt),
     });
+  }
+
+  @Post("recurring")
+  @ApiOperation({ summary: "Schedule separate bookings on selected weekdays" })
+  async createRecurring(@CurrentUser() user: AuthUser, @Body() dto: CreateRecurringBookingDto) {
+    const firstStart = new Date(dto.startAt);
+    const firstEnd = new Date(dto.endAt);
+    const durationMs = firstEnd.getTime() - firstStart.getTime();
+    if (durationMs <= 0) {
+      throw new AppException(ErrorCode.ValidationError, "End time must be after start time", HttpStatus.BAD_REQUEST);
+    }
+
+    const until = new Date(dto.repeatUntil);
+    until.setUTCHours(23, 59, 59, 999);
+    const days = new Set(dto.daysOfWeek);
+    const timezoneOffsetMs = (dto.timezoneOffsetMinutes ?? 0) * 60_000;
+    const occurrences: Date[] = [];
+    const cursor = new Date(firstStart);
+    while (cursor <= until && occurrences.length <= 90) {
+      const localWeekday = new Date(cursor.getTime() - timezoneOffsetMs).getUTCDay();
+      if (days.has(localWeekday)) occurrences.push(new Date(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    if (!occurrences.length) {
+      throw new AppException(ErrorCode.ValidationError, "No trips fall in this date range", HttpStatus.BAD_REQUEST);
+    }
+    if (occurrences.length > 90) {
+      throw new AppException(ErrorCode.ValidationError, "A recurring series is limited to 90 trips", HttpStatus.BAD_REQUEST);
+    }
+
+    const recurringSeriesId = randomUUID();
+    const base: any = { ...dto, recurringSeriesId, deferCreatedEvents: true };
+    delete base.daysOfWeek;
+    delete base.repeatUntil;
+    delete base.timezoneOffsetMinutes;
+    const bookings: any[] = [];
+    try {
+      for (const startAt of occurrences) {
+        bookings.push(await this.bookings.create(user.id, {
+          ...base,
+          startAt,
+          endAt: new Date(startAt.getTime() + durationMs),
+        }));
+      }
+    } catch (error) {
+      // Do not leave half a school/work schedule behind if a later date is busy.
+      const created = await this.prisma.booking.findMany({
+        where: { recurringSeriesId }, select: { couponId: true },
+      });
+      const couponUses = new Map<string, number>();
+      for (const booking of created) {
+        if (booking.couponId) couponUses.set(booking.couponId, (couponUses.get(booking.couponId) ?? 0) + 1);
+      }
+      await this.prisma.$transaction([
+        this.prisma.booking.deleteMany({ where: { recurringSeriesId } }),
+        ...[...couponUses].map(([id, count]) =>
+          this.prisma.coupon.update({ where: { id }, data: { usedCount: { decrement: count } } }),
+        ),
+      ]);
+      throw error;
+    }
+    for (const booking of bookings) this.bookings.publishCreated(booking, user.id);
+    return { recurringSeriesId, count: bookings.length, bookings };
   }
 
   @Get(":id")
