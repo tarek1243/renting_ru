@@ -98,6 +98,9 @@ export function Header({
               >
                 {T("myBookings")}
               </Link>
+              <Link href={`/${locale}/account/needs`} className="hidden rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 md:block">
+                {locale === "ar" ? "احتياجاتي" : "My needs"}
+              </Link>
               <Link href={`/${locale}/account`} className="flex items-center gap-2">
                 <UserAvatar name={user.firstName} />
               </Link>
@@ -159,6 +162,9 @@ export function Header({
               <>
                 <Link href={`/${locale}/account/bookings`} className="rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMobileOpen(false)}>
                   {T("myBookings")}
+                </Link>
+                <Link href={`/${locale}/account/needs`} className="rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMobileOpen(false)}>
+                  {locale === "ar" ? "احتياجاتي" : "My needs"}
                 </Link>
                 <Link href={`/${locale}/account`} className="rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setMobileOpen(false)}>
                   {user.firstName}

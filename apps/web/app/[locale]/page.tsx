@@ -2,6 +2,7 @@ import Link from "next/link";
 import { api, t } from "../../lib/api";
 import { ui } from "../../lib/i18n";
 import { ListingCard, type ListingSummary } from "../../components/ListingCard";
+import { NeedRequestForm } from "../../components/NeedRequestForm";
 
 export const revalidate = 60;
 
@@ -80,6 +81,8 @@ export default async function HomePage({ params }: { params: { locale: string } 
           )}
         </div>
       </section>
+
+      <NeedRequestForm locale={locale} />
 
       {/* ── Stats strip ───────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

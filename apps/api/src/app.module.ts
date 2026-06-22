@@ -22,6 +22,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
 import { PricingModule } from "./modules/pricing/pricing.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { WebhooksModule } from "./modules/webhooks/webhooks.module";
+import { NeedsModule } from "./modules/needs/needs.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
 @Module({
@@ -44,6 +45,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     NotificationsModule,
     WebhooksModule,
     MediaModule,
+    NeedsModule,
     AdminModule,
   ],
   controllers: [HealthController],
