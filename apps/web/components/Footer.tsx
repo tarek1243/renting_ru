@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ui } from "../lib/i18n";
+import { VersionBadge } from "./VersionBadge";
 
 function CarIcon() {
   return (
@@ -43,7 +44,7 @@ const SECTION_TITLES: Record<string, Record<string, string>> = {
   support: { en: "Support", ar: "الدعم" },
 };
 
-export function Footer({ locale }: { locale: string }) {
+export function Footer({ locale, appVersion }: { locale: string; appVersion?: string }) {
   const T = ui(locale);
   const exploreLinks = LINKS.explore[locale] ?? LINKS.explore.en;
   const supportLinks = LINKS.support[locale] ?? LINKS.support.en;
@@ -108,7 +109,10 @@ export function Footer({ locale }: { locale: string }) {
         {/* Bottom bar */}
         <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-6">
           <p className="text-xs text-gray-400">© {new Date().getFullYear()} Renting platform. All rights reserved.</p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {appVersion ? (
+              <VersionBadge className="font-mono text-xs text-gray-400" initialVersion={appVersion} locale={locale} />
+            ) : null}
             <Link href={`/${locale}/pages/terms`} className="text-xs text-gray-400 hover:text-gray-600">{T("terms")}</Link>
             <Link href={`/${locale}/faq`} className="text-xs text-gray-400 hover:text-gray-600">{T("faq")}</Link>
           </div>
