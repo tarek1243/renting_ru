@@ -8,7 +8,9 @@ import { CategoriesService } from "../categories/categories.service";
 const PUBLIC_LISTING_SELECT = {
   id: true, slug: true, title: true, description: true, status: true,
   attributes: true, avgRating: true, reviewsCount: true, isFeatured: true,
-  lat: true, lng: true,
+  city: true, neighborhood: true, lat: true, lng: true,
+  withDriverAvailable: true, selfDriveAvailable: true,
+  owner: { select: { id: true, gender: true } },
   category: { select: { slug: true, name: true, isEnabled: true } },
   location: { select: { id: true, name: true, type: true, city: true, lat: true, lng: true } },
   media: { orderBy: { sortOrder: "asc" as const }, select: { type: true, url: true, isCover: true, sortOrder: true } },
@@ -34,6 +36,12 @@ export class ListingsService {
 
     const where: any = { categoryId: category.id, status: "active" };
     const AND: any[] = [];
+    const viewerGender = await this.viewerGender(query.viewerId);
+    if (viewerGender) {
+      AND.push({ owner: { gender: viewerGender } });
+    } else {
+      AND.push({ owner: { gender: null } });
+    }
 
     // engine-level filters
     if (query.q) {
@@ -113,14 +121,20 @@ export class ListingsService {
   }
 
   /** Public detail by id or slug. Category must be enabled. */
-  async getPublic(idOrSlug: string) {
+  async getPublic(idOrSlug: string, viewerId?: string) {
     const isUuid = /^[0-9a-f-]{36}$/i.test(idOrSlug);
+    const viewerGender = await this.viewerGender(viewerId);
     const listing = await this.prisma.listing.findFirst({
       where: isUuid ? { id: idOrSlug } : { slug: idOrSlug },
       select: { ...PUBLIC_LISTING_SELECT, createdAt: true, categoryId: true },
     });
-    if (!listing || listing.status === "draft") throw AppException.notFound("Listing not found");
+    if (!listing || listing.status !== "active") throw AppException.notFound("Listing not found");
     if (!listing.category.isEnabled) throw AppException.categoryDisabled(listing.category.slug);
+    if (viewerGender) {
+      if (listing.owner?.gender !== viewerGender) throw AppException.notFound("Listing not found");
+    } else if (listing.owner?.gender) {
+      throw AppException.notFound("Listing not found");
+    }
     void this.prisma.listing.update({ where: { id: listing.id }, data: { viewCount: { increment: 1 } } }).catch(() => undefined);
     return listing;
   }
@@ -169,5 +183,11 @@ export class ListingsService {
 
   private defaultUnit(category: any): string {
     return category.pricingUnits.find((u: any) => u.isDefault)?.unit ?? category.pricingUnits[0]?.unit ?? "day";
+  }
+
+  private async viewerGender(viewerId?: string): Promise<"male" | "female" | null> {
+    if (!viewerId || viewerId.startsWith("apikey:")) return null;
+    const viewer = await this.prisma.user.findUnique({ where: { id: viewerId }, select: { gender: true } });
+    return viewer?.gender ?? null;
   }
 }

@@ -59,7 +59,13 @@ export default function AccountPage() {
     try {
       await authedApi("/me", {
         method: "PATCH",
-        body: { firstName: profile.firstName, lastName: profile.lastName, locale: profile.locale, preferredCurrency: profile.preferredCurrency },
+        body: {
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          gender: profile.gender,
+          locale: profile.locale,
+          preferredCurrency: profile.preferredCurrency,
+        },
       });
       setMessage("✓");
     } catch (e: any) {
@@ -116,6 +122,13 @@ export default function AccountPage() {
           <div>
             <label className="label">{T("phone")}</label>
             <input className="input" value={profile.phone ?? ""} disabled />
+          </div>
+          <div>
+            <label className="label">{locale === "ar" ? "الجنس" : "Gender"}</label>
+            <select className="input" value={profile.gender ?? "male"} onChange={(e) => setProfile({ ...profile, gender: e.target.value })}>
+              <option value="male">{locale === "ar" ? "ذكر" : "Male"}</option>
+              <option value="female">{locale === "ar" ? "أنثى" : "Female"}</option>
+            </select>
           </div>
         </div>
         <button className="btn-primary" onClick={saveProfile}>{T("save")}</button>

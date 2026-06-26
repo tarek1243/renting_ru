@@ -20,6 +20,18 @@ enum UserStatus {
   deleted
 }
 
+enum Gender {
+  male
+  female
+}
+
+enum OwnerApprovalStatus {
+  pending
+  approved
+  rejected
+  suspended
+}
+
 enum LicenseStatus {
   pending
   approved
@@ -28,9 +40,19 @@ enum LicenseStatus {
 
 enum ListingStatus {
   draft
+  pending_review
+  ai_flagged
   active
   inactive
   maintenance
+  rejected
+}
+
+enum ListingModerationStatus {
+  not_checked
+  passed
+  flagged
+  failed
 }
 
 enum AttributeDataType {
@@ -190,6 +212,11 @@ model User {
   locale            String     @default("en")
   preferredCurrency String     @default("USD") @map("preferred_currency")
   status            UserStatus @default(active)
+  gender            Gender?
+  ownerApprovalStatus OwnerApprovalStatus @default(pending) @map("owner_approval_status")
+  ownerReviewedById String?    @map("owner_reviewed_by_id") @db.Uuid
+  ownerReviewedAt   DateTime?  @map("owner_reviewed_at")
+  ownerRejectReason String?    @map("owner_reject_reason")
   emailVerifiedAt   DateTime?  @map("email_verified_at")
   phoneVerifiedAt   DateTime?  @map("phone_verified_at")
   createdAt         DateTime   @default(now()) @map("created_at")
@@ -395,9 +422,18 @@ model Listing {
   description  Json? // I18nText
   status       ListingStatus @default(draft)
   locationId   String?       @map("location_id") @db.Uuid
+  city         String?
+  neighborhood String?
   lat          Float?
   lng          Float?
   attributes   Json          @default("{}") // validated against CategoryAttribute defs
+  withDriverAvailable Boolean @default(true) @map("with_driver_available")
+  selfDriveAvailable  Boolean @default(true) @map("self_drive_available")
+  moderationStatus ListingModerationStatus @default(not_checked) @map("moderation_status")
+  moderationWarnings Json? @map("moderation_warnings")
+  reviewedById String? @map("reviewed_by_id") @db.Uuid
+  reviewedAt DateTime? @map("reviewed_at")
+  rejectReason String? @map("reject_reason")
   avgRating    Decimal       @default(0) @map("avg_rating") @db.Decimal(3, 2)
   reviewsCount Int           @default(0) @map("reviews_count")
   isFeatured   Boolean       @default(false) @map("is_featured")

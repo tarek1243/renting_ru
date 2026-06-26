@@ -53,14 +53,14 @@ export class ListingsController {
   @ApiQuery({ name: "availableFrom", required: false })
   @ApiQuery({ name: "availableTo", required: false })
   search(@Param("slug") slug: string, @Query() query: Record<string, any>, @Req() req: Request) {
-    return this.listings.search(slug, { ...query, ...((req as any).query ?? {}) });
+    return this.listings.search(slug, { ...query, ...((req as any).query ?? {}), viewerId: (req as any).user?.id });
   }
 
   @Public()
   @Get("listings/:idOrSlug")
   @ApiOperation({ summary: "Listing detail (gallery, attributes, prices, location)" })
-  detail(@Param("idOrSlug") idOrSlug: string) {
-    return this.listings.getPublic(idOrSlug);
+  detail(@Param("idOrSlug") idOrSlug: string, @Req() req: Request) {
+    return this.listings.getPublic(idOrSlug, (req as any).user?.id);
   }
 
   @Public()

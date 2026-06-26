@@ -18,6 +18,11 @@ class SetUserStatusDto {
   @ApiProperty({ enum: ["active", "suspended"] }) @IsIn(["active", "suspended"]) status!: "active" | "suspended";
 }
 
+class OwnerDecisionDto {
+  @ApiPropertyOptional({ description: "Required when rejecting/suspending owner approval" })
+  @IsOptional() @IsString() reason?: string;
+}
+
 @ApiTags("Admin · Customers")
 @ApiBearerAuth()
 @Roles(RoleName.Staff, RoleName.SuperAdmin)
@@ -50,6 +55,7 @@ export class CustomersAdminController {
         where, orderBy: { createdAt: "desc" }, skip: page.skip, take: page.take,
         select: {
           id: true, email: true, phone: true, firstName: true, lastName: true, status: true, createdAt: true,
+          gender: true, ownerApprovalStatus: true, ownerRejectReason: true,
           license: { select: { status: true, country: true, expiresOn: true } },
           _count: { select: { bookings: true } },
         },
@@ -66,6 +72,7 @@ export class CustomersAdminController {
       where: { id },
       select: {
         id: true, email: true, phone: true, firstName: true, lastName: true, status: true,
+        gender: true, ownerApprovalStatus: true, ownerRejectReason: true,
         locale: true, preferredCurrency: true, createdAt: true,
         license: true,
         bookings: {
@@ -103,6 +110,18 @@ export class CustomersAdminController {
     return { id: updated.id, status: updated.status };
   }
 
+  @Post(":id/owner/approve")
+  @ApiOperation({ summary: "Approve a customer account as a vehicle owner" })
+  async approveOwner(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.decideOwner(id, "approved", user.id);
+  }
+
+  @Post(":id/owner/reject")
+  @ApiOperation({ summary: "Reject a customer's vehicle-owner approval" })
+  async rejectOwner(@Param("id") id: string, @Body() dto: OwnerDecisionDto, @CurrentUser() user: AuthUser) {
+    return this.decideOwner(id, "rejected", user.id, dto.reason ?? "Owner account was not approved");
+  }
+
   private async decideLicense(userId: string, status: "approved" | "rejected", actorId: string, reason?: string) {
     const license = await this.prisma.driverLicense.findUnique({ where: { userId } });
     if (!license) throw AppException.notFound("No license submitted");
@@ -112,5 +131,21 @@ export class CustomersAdminController {
     });
     this.notifications.queue(userId, "email", "license_status", { status, reason: reason ?? "" });
     this.audit.log({ actorId, action: `license.${status}`, entityType: "driver_license", entityId: license.id });
+  }
+
+  private async decideOwner(userId: string, status: "approved" | "rejected", actorId: string, reason?: string) {
+    const customer = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ownerApprovalStatus: status,
+        ownerReviewedById: actorId,
+        ownerReviewedAt: new Date(),
+        ownerRejectReason: reason ?? null,
+      },
+      select: { id: true, ownerApprovalStatus: true, ownerRejectReason: true },
+    });
+    this.notifications.queue(userId, "email", "owner_approval_status", { status, reason: reason ?? "" });
+    this.audit.log({ actorId, action: `owner.${status}`, entityType: "user", entityId: userId, after: customer });
+    return customer;
   }
 }

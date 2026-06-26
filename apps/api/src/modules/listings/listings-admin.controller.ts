@@ -13,6 +13,8 @@ import { AuthUser, CurrentUser, Roles } from "../../common/decorators";
 import { pageParams, paginated, sortParams } from "../../common/pagination";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CategoriesService } from "../categories/categories.service";
+import { ListingModerationService } from "./listing-moderation.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 class ListingPriceDto {
   @ApiProperty({ enum: PricingUnit }) @IsEnum(PricingUnit) pricingUnit!: PricingUnit;
@@ -72,6 +74,10 @@ class PriceRuleDto {
   @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
+class ListingDecisionDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() reason?: string;
+}
+
 @ApiTags("Admin · Listings")
 @ApiBearerAuth()
 @Roles(RoleName.Staff, RoleName.SuperAdmin)
@@ -81,6 +87,8 @@ export class ListingsAdminController {
     private readonly prisma: PrismaService,
     private readonly categories: CategoriesService,
     private readonly audit: AuditService,
+    private readonly moderation: ListingModerationService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get("listings")
@@ -90,12 +98,17 @@ export class ListingsAdminController {
     const where: any = {};
     if (query.categoryId) where.categoryId = String(query.categoryId);
     if (query.status) where.status = String(query.status);
+    if (query.moderationStatus) where.moderationStatus = String(query.moderationStatus);
     if (query.q) where.slug = { contains: String(query.q), mode: "insensitive" };
     const orderBy = sortParams(query, ["createdAt", "avgRating", "viewCount"], { createdAt: "desc" });
     const [items, total] = await this.prisma.$transaction([
       this.prisma.listing.findMany({
         where, orderBy, skip: page.skip, take: page.take,
-        include: { category: { select: { slug: true, name: true } }, prices: true, media: true, location: true },
+        include: {
+          category: { select: { slug: true, name: true } },
+          owner: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, gender: true, ownerApprovalStatus: true } },
+          prices: true, media: true, location: true,
+        },
       }),
       this.prisma.listing.count({ where }),
     ]);
@@ -108,7 +121,9 @@ export class ListingsAdminController {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
       include: {
-        category: true, prices: true, media: { orderBy: { sortOrder: "asc" } }, location: true,
+        category: true,
+        owner: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, gender: true, ownerApprovalStatus: true } },
+        prices: true, media: { orderBy: { sortOrder: "asc" } }, location: true,
         priceRules: true, availabilityBlocks: { orderBy: { startAt: "asc" }, take: 100 },
       },
     });
@@ -137,6 +152,105 @@ export class ListingsAdminController {
     });
     this.audit.log({ actorId: user.id, action: "listing.create", entityType: "listing", entityId: listing.id, after: listing });
     return listing;
+  }
+
+  @Get("listings-review")
+  @ApiOperation({ summary: "Moderation review queue for pending and AI-flagged listings" })
+  async reviewQueue(@Query() query: Record<string, any>) {
+    const page = pageParams(query);
+    const status = query.status ? [String(query.status)] : ["pending_review", "ai_flagged"];
+    const where: any = { status: { in: status } };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.listing.findMany({
+        where,
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        skip: page.skip,
+        take: page.take,
+        include: {
+          owner: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, gender: true, ownerApprovalStatus: true } },
+          category: { select: { slug: true, name: true } },
+          prices: { orderBy: { pricingUnit: "asc" } },
+          media: { orderBy: { sortOrder: "asc" } },
+          location: true,
+        },
+      }),
+      this.prisma.listing.count({ where }),
+    ]);
+    return paginated(items, total, page);
+  }
+
+  @Post("listings/:id/approve")
+  @ApiOperation({ summary: "Approve a listing and publish it immediately" })
+  async approveListing(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    const before = await this.prisma.listing.findUnique({
+      where: { id },
+      include: { owner: true },
+    });
+    if (!before) throw AppException.notFound("Listing not found");
+    if (before.owner?.ownerApprovalStatus !== "approved") {
+      throw new AppException(ErrorCode.Forbidden, "Owner account must be approved before listing approval", HttpStatus.FORBIDDEN);
+    }
+    const listing = await this.prisma.listing.update({
+      where: { id },
+      data: { status: "active", reviewedById: user.id, reviewedAt: new Date(), rejectReason: null },
+      include: { owner: true },
+    });
+    if (listing.ownerId) {
+      this.notifications.queue(listing.ownerId, "email", "listing_review_status", {
+        title: (listing.title as any)?.en ?? listing.slug,
+        status: "approved",
+        reason: "",
+      });
+    }
+    this.audit.log({ actorId: user.id, action: "listing.approve", entityType: "listing", entityId: id, before, after: listing });
+    return listing;
+  }
+
+  @Post("listings/:id/reject")
+  @ApiOperation({ summary: "Reject a listing and store the rejection reason" })
+  async rejectListing(@Param("id") id: string, @Body() dto: ListingDecisionDto, @CurrentUser() user: AuthUser) {
+    const before = await this.prisma.listing.findUnique({ where: { id } });
+    if (!before) throw AppException.notFound("Listing not found");
+    const reason = dto.reason ?? "Listing did not meet marketplace requirements";
+    const listing = await this.prisma.listing.update({
+      where: { id },
+      data: { status: "rejected", reviewedById: user.id, reviewedAt: new Date(), rejectReason: reason },
+    });
+    if (listing.ownerId) {
+      this.notifications.queue(listing.ownerId, "email", "listing_review_status", {
+        title: (listing.title as any)?.en ?? listing.slug,
+        status: "rejected",
+        reason,
+      });
+    }
+    this.audit.log({ actorId: user.id, action: "listing.reject", entityType: "listing", entityId: id, before, after: listing });
+    return listing;
+  }
+
+  @Post("listings/:id/moderate")
+  @ApiOperation({ summary: "Run or rerun AI moderation for a listing when AI is enabled" })
+  async moderateListing(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      include: { media: { orderBy: { sortOrder: "asc" } } },
+    });
+    if (!listing) throw AppException.notFound("Listing not found");
+    const result = await this.moderation.analyze({
+      title: listing.title as Record<string, string>,
+      description: listing.description as Record<string, string> | null,
+      imageUrls: listing.media.map((m) => m.url),
+      tags: Array.isArray((listing.attributes as any)?.tags) ? (listing.attributes as any).tags : [],
+    });
+    const updated = await this.prisma.listing.update({
+      where: { id },
+      data: {
+        moderationStatus: result.status,
+        moderationWarnings: result as any,
+        status: result.status === "flagged" || result.status === "failed" ? "ai_flagged" : listing.status,
+      },
+    });
+    this.audit.log({ actorId: user.id, action: "listing.moderate", entityType: "listing", entityId: id, after: updated });
+    return updated;
   }
 
   @Patch("listings/:id")

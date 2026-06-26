@@ -16,6 +16,19 @@ function displayValue(v: unknown): string {
   return String(v);
 }
 
+function parseSettingValue(key: string, value: string): unknown {
+  if (key === "ai_moderation_enabled") return value === "true";
+  const trimmed = value.trim();
+  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
 const EDITABLE_KEYS = [
   "default_currency",
   "supported_currencies",
@@ -23,6 +36,15 @@ const EDITABLE_KEYS = [
   "company_name",
   "support_email",
   "support_phone",
+  "ai_moderation_enabled",
+  "openrouter_model",
+  "openrouter_api_key",
+];
+
+const DEFAULT_SETTINGS: Setting[] = [
+  { key: "ai_moderation_enabled", value: false, description: "Enable OpenRouter listing moderation", isPublic: false },
+  { key: "openrouter_model", value: "openai/gpt-4o-mini", description: "OpenRouter model used for listing moderation", isPublic: false },
+  { key: "openrouter_api_key", value: "", description: "Optional OpenRouter API key; env OPENROUTER_API_KEY also works", isPublic: false },
 ];
 
 export default function SettingsPage() {
@@ -35,7 +57,9 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       const res = await authedApi<Setting[]>("/admin/settings");
-      setSettings(Array.isArray(res) ? res : []);
+      const rows = Array.isArray(res) ? res : [];
+      const existing = new Set(rows.map((s) => s.key));
+      setSettings([...rows, ...DEFAULT_SETTINGS.filter((s) => !existing.has(s.key))]);
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -52,10 +76,10 @@ export default function SettingsPage() {
     try {
       await authedApi(`/admin/settings/${key}`, {
         method: "PUT",
-        body: JSON.stringify({ value }),
+        body: JSON.stringify({ value: parseSettingValue(key, value) }),
       });
       setSettings((prev) =>
-        prev.map((s) => (s.key === key ? { ...s, value } : s)),
+        prev.map((s) => (s.key === key ? { ...s, value: parseSettingValue(key, value) } : s)),
       );
       setEditing((prev) => { const n = { ...prev }; delete n[key]; return n; });
     } catch (e: any) {

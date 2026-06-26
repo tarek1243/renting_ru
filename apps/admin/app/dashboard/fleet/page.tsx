@@ -17,9 +17,12 @@ interface Listing {
 
 const STATUS_BADGE: Record<string, string> = {
   draft: "badge-gray",
+  pending_review: "badge-yellow",
+  ai_flagged: "badge-yellow",
   active: "badge-green",
-  suspended: "badge-yellow",
-  archived: "badge-red",
+  inactive: "badge-gray",
+  maintenance: "badge-yellow",
+  rejected: "badge-red",
 };
 
 export default function FleetPage() {
@@ -123,10 +126,10 @@ export default function FleetPage() {
                     {l.status === "active" && (
                       <button
                         disabled={actionId === l.id}
-                        onClick={() => setStatus(l.id, "suspended")}
+                        onClick={() => setStatus(l.id, "inactive")}
                         className="btn-secondary px-2 py-1 text-xs"
                       >
-                        Suspend
+                        Deactivate
                       </button>
                     )}
                     <button

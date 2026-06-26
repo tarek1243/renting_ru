@@ -43,9 +43,31 @@ export const PRICING_UNIT_MINUTES: Record<PricingUnit, number> = {
 
 export enum ListingStatus {
   Draft = "draft",
+  PendingReview = "pending_review",
+  AiFlagged = "ai_flagged",
   Active = "active",
   Inactive = "inactive",
   Maintenance = "maintenance",
+  Rejected = "rejected",
+}
+
+export enum Gender {
+  Male = "male",
+  Female = "female",
+}
+
+export enum OwnerApprovalStatus {
+  Pending = "pending",
+  Approved = "approved",
+  Rejected = "rejected",
+  Suspended = "suspended",
+}
+
+export enum ListingModerationStatus {
+  NotChecked = "not_checked",
+  Passed = "passed",
+  Flagged = "flagged",
+  Failed = "failed",
 }
 
 export enum AttributeDataType {

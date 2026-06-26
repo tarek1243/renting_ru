@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put } from "@nestjs/common";
+import { Body, Controller, Get, Param, Put } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RoleName } from "@renting/shared";
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from "class-validator";
@@ -46,6 +46,16 @@ export class SettingsController {
   async upsert(@Body() dto: UpsertSettingDto, @CurrentUser() user: AuthUser) {
     const row = await this.settings.set(dto.key, dto.value, dto.group, dto.isPublic);
     this.audit.log({ actorId: user.id, action: "setting.set", entityType: "setting", entityId: dto.key, after: row });
+    return row;
+  }
+
+  @Roles(RoleName.SuperAdmin)
+  @ApiBearerAuth()
+  @Put("admin/settings/:key")
+  @ApiOperation({ summary: "Update one setting by key" })
+  async updateKey(@Param("key") key: string, @Body() dto: { value: unknown }, @CurrentUser() user: AuthUser) {
+    const row = await this.settings.set(key, dto.value, "general", false);
+    this.audit.log({ actorId: user.id, action: "setting.set", entityType: "setting", entityId: key, after: row });
     return row;
   }
 }

@@ -10,11 +10,14 @@ export default function RegisterPage() {
   const { locale } = useParams<{ locale: string }>();
   const T = ui(locale);
   const router = useRouter();
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", gender: "male" });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const setSelect = (key: string) => (e: React.ChangeEvent<HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const submit = async () => {
@@ -42,6 +45,10 @@ export default function RegisterPage() {
         <input className="input" placeholder={T("lastName")} value={form.lastName} onChange={set("lastName")} />
         <input className="input" type="email" placeholder={T("email")} value={form.email} onChange={set("email")} />
         <input className="input" placeholder={`${T("phone")} (+7…)`} value={form.phone} onChange={set("phone")} />
+        <select className="input" value={form.gender} onChange={setSelect("gender")}>
+          <option value="male">{locale === "ar" ? "ذكر" : "Male"}</option>
+          <option value="female">{locale === "ar" ? "أنثى" : "Female"}</option>
+        </select>
         <input className="input" type="password" placeholder={T("password")} value={form.password} onChange={set("password")} />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button className="btn-primary w-full" onClick={submit} disabled={busy}>

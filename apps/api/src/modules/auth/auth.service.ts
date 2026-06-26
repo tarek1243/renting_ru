@@ -46,6 +46,7 @@ export class AuthService {
         passwordHash: await bcrypt.hash(dto.password, 10),
         firstName: dto.firstName,
         lastName: dto.lastName ?? "",
+        gender: dto.gender,
         roles: { create: { roleId: customerRole.id } },
       },
     });
@@ -269,6 +270,8 @@ export class AuthService {
         phone: user.phone,
         firstName: user.firstName,
         lastName: user.lastName,
+        gender: user.gender,
+        ownerApprovalStatus: user.ownerApprovalStatus,
         roles,
         locale: user.locale,
         preferredCurrency: user.preferredCurrency,

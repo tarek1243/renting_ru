@@ -49,6 +49,9 @@ const schema = z.object({
   MAIL_FROM: z.string().default("Renting <no-reply@renting.local>"),
   SMS_PROVIDER: z.string().default("log"),
   SMS_API_KEY: z.string().optional(),
+
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_MODEL: z.string().default("openai/gpt-4o-mini"),
 });
 
 export type AppConfig = z.infer<typeof schema>;

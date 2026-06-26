@@ -39,6 +39,14 @@ export const TEMPLATES: TemplateSet = {
     en: { subject: "Driver's license verification", body: "Your license verification status: {{status}}. {{reason}}" },
     ru: { subject: "Проверка водительского удостоверения", body: "Статус проверки: {{status}}. {{reason}}" },
   },
+  owner_approval_status: {
+    en: { subject: "Vehicle owner account review", body: "Your vehicle owner approval status: {{status}}. {{reason}}" },
+    ru: { subject: "Проверка аккаунта владельца", body: "Статус аккаунта владельца: {{status}}. {{reason}}" },
+  },
+  listing_review_status: {
+    en: { subject: "Listing review status", body: "Your listing '{{title}}' was {{status}}. {{reason}}" },
+    ru: { subject: "Статус объявления", body: "Ваше объявление '{{title}}': {{status}}. {{reason}}" },
+  },
   driver_assigned: {
     en: { subject: "New assignment {{code}}", body: "You have been assigned to booking {{code}}, starting {{startAt}}." },
     ru: { subject: "Новое назначение {{code}}", body: "Вам назначено бронирование {{code}}, начало {{startAt}}." },
