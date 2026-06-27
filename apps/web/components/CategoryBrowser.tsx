@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, t } from "../lib/api";
+import { authedApi, getUser } from "../lib/auth";
 import { ui } from "../lib/i18n";
 import { ListingCard, ListingCardSkeleton, type ListingSummary } from "./ListingCard";
 
@@ -69,9 +70,20 @@ export function CategoryBrowser({
     let cancelled = false;
     setLoading(true);
     api<ListingSummary[]>(`/categories/${schema.slug}/listings?${buildQuery()}`)
-      .then(({ data, meta }) => {
+      .then(async ({ data, meta }) => {
         if (cancelled) return;
-        setItems(data);
+        let nextData = data;
+        if (getUser()) {
+          try {
+            const { data: favorites } = await authedApi<Array<{ listing: { id: string } }>>("/me/favorites?perPage=200");
+            const favoriteIds = new Set((favorites ?? []).map((f) => f.listing.id));
+            nextData = data.map((listing) => ({ ...listing, isFavorited: favoriteIds.has(listing.id) }));
+          } catch {
+            nextData = data;
+          }
+        }
+        if (cancelled) return;
+        setItems(nextData);
         setTotal(meta?.pagination?.total ?? data.length);
       })
       .catch(() => !cancelled && setItems([]))

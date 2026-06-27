@@ -106,6 +106,14 @@ export default function AccountPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <section className="card space-y-3 p-6">
         <h1 className="text-xl font-bold">{T("profile")}</h1>
+        <div className="flex flex-wrap gap-2">
+          <a href={`/${locale}/account/favorites`} className="btn-secondary !px-3 !py-2 text-xs">
+            {locale === "ar" ? "المفضلة" : "Saved listings"}
+          </a>
+          <a href={`/${locale}/account/host`} className="btn-secondary !px-3 !py-2 text-xs">
+            {locale === "ar" ? "لوحة المالك" : "Host dashboard"}
+          </a>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">{T("firstName")}</label>

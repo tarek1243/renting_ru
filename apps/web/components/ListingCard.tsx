@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { fmtMoney, t } from "../lib/api";
+import { authedApi, getUser } from "../lib/auth";
 import { ui } from "../lib/i18n";
 
 export interface ListingSummary {
@@ -12,6 +16,7 @@ export interface ListingSummary {
   category: { slug: string };
   media: Array<{ url: string; isCover?: boolean }>;
   prices: Array<{ pricingUnit: string; currency: string; basePrice: string | number }>;
+  isFavorited?: boolean;
 }
 
 function CarPlaceholder() {
@@ -34,7 +39,11 @@ export function ListingCard({
   cardAttributes?: Array<{ key: string; label: Record<string, string>; unit?: string | null }>;
 }) {
   const T = ui(locale);
-  const cover = listing.media.find((m) => m.isCover) ?? listing.media[0];
+  const orderedMedia = [...listing.media].sort((a, b) => Number(b.isCover) - Number(a.isCover));
+  const [imageIndex, setImageIndex] = useState(0);
+  const [favorited, setFavorited] = useState(Boolean(listing.isFavorited));
+  const [saving, setSaving] = useState(false);
+  const cover = orderedMedia[imageIndex] ?? orderedMedia[0];
   const dayPrice = listing.prices.find((p) => p.pricingUnit === "day") ?? listing.prices[0];
   const rating = Number(listing.avgRating);
   const specs = cardAttributes
@@ -45,26 +54,85 @@ export function ListingCard({
     })
     .filter(Boolean) as string[];
 
+  const nextImage = (direction: -1 | 1) => {
+    if (orderedMedia.length <= 1) return;
+    setImageIndex((idx) => (idx + direction + orderedMedia.length) % orderedMedia.length);
+  };
+
+  const toggleFavorite = async () => {
+    if (!getUser()) {
+      window.location.href = `/${locale}/login`;
+      return;
+    }
+    setSaving(true);
+    try {
+      if (favorited) {
+        await authedApi(`/me/favorites/${listing.id}`, { method: "DELETE" });
+      } else {
+        await authedApi(`/me/favorites/${listing.id}`, { method: "POST" });
+      }
+      setFavorited((v) => !v);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <Link
-      href={`/${locale}/${listing.category.slug}/${listing.slug}`}
-      className="group block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-    >
+    <article className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
       {/* Image */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-        {cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cover.url}
-            alt={t(listing.title, locale)}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <CarPlaceholder />
-        )}
+        <Link href={`/${locale}/${listing.category.slug}/${listing.slug}`} className="block h-full w-full">
+          {cover ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cover.url}
+              alt={t(listing.title, locale)}
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            <CarPlaceholder />
+          )}
+        </Link>
         {/* Bottom gradient for text legibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+        <button
+          type="button"
+          className={`absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-lg shadow-sm backdrop-blur transition ${favorited ? "text-red-500" : "text-gray-500 hover:text-red-500"}`}
+          disabled={saving}
+          onClick={toggleFavorite}
+          aria-label={favorited ? "Remove from wishlist" : "Save to wishlist"}
+          title={favorited ? "Saved" : "Save"}
+        >
+          {favorited ? "♥" : "♡"}
+        </button>
+        {orderedMedia.length > 1 && (
+          <>
+            <button
+              type="button"
+              className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-gray-700 shadow-sm backdrop-blur hover:bg-white"
+              onClick={() => nextImage(-1)}
+              aria-label="Previous image"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-gray-700 shadow-sm backdrop-blur hover:bg-white"
+              onClick={() => nextImage(1)}
+              aria-label="Next image"
+            >
+              ›
+            </button>
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1">
+              {orderedMedia.slice(0, 5).map((_, idx) => (
+                <span key={idx} className={`h-1.5 rounded-full ${idx === imageIndex ? "w-4 bg-white" : "w-1.5 bg-white/60"}`} />
+              ))}
+            </div>
+          </>
+        )}
         {/* Rating badge */}
         {rating > 0 && (
           <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 shadow-sm backdrop-blur-sm">
@@ -78,7 +146,7 @@ export function ListingCard({
       </div>
 
       {/* Content */}
-      <div className="space-y-2.5 p-4">
+      <Link href={`/${locale}/${listing.category.slug}/${listing.slug}`} className="block space-y-2.5 p-4">
         <h3 className="truncate text-sm font-semibold text-gray-900 group-hover:text-brand-600">
           {t(listing.title, locale)}
         </h3>
@@ -101,8 +169,8 @@ export function ListingCard({
             <span className="text-xs text-gray-400">{T("perDay")}</span>
           </div>
         )}
-      </div>
-    </Link>
+      </Link>
+    </article>
   );
 }
 

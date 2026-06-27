@@ -371,6 +371,23 @@ export function BookingWidget({ locale, listing, schema, extras, locations }: Pr
           </div>
         )}
 
+        <div className="border-b border-gray-100 p-5">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">
+            {locale === "ar" ? "السياسات" : "Policies"}
+          </p>
+          <div className="grid gap-2 text-xs text-gray-600">
+            <div className="rounded-xl bg-green-50 px-3 py-2 text-green-800">
+              {locale === "ar" ? "إلغاء مجاني حتى 24 ساعة قبل موعد الاستلام." : "Free cancellation up to 24 hours before pickup."}
+            </div>
+            <div className="rounded-xl bg-blue-50 px-3 py-2 text-blue-800">
+              {locale === "ar" ? "قد يتم حجز وديعة تأمين قابلة للاسترداد حسب نوع المركبة." : "A refundable security deposit may be held depending on the vehicle."}
+            </div>
+            <div className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">
+              {locale === "ar" ? "يتحمل المستأجر المخالفات أو الأضرار غير المشمولة بالتأمين." : "Renter remains responsible for violations or damage not covered by insurance."}
+            </div>
+          </div>
+        </div>
+
         {/* ── Payment method ─────────────────────────── */}
         <div className="p-5 pb-4">
           <p className="label mb-3">Payment</p>

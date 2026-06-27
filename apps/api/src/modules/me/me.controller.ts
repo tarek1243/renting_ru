@@ -275,6 +275,51 @@ export class MeController {
     return { items, total };
   }
 
+  @Get("owner/dashboard")
+  @ApiOperation({ summary: "Owner dashboard: earnings, upcoming bookings, listing views" })
+  async ownerDashboard(@CurrentUser() user: AuthUser) {
+    const now = new Date();
+    const [listings, upcoming, completed] = await this.prisma.$transaction([
+      this.prisma.listing.findMany({
+        where: { ownerId: user.id },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, slug: true, title: true, status: true, viewCount: true, avgRating: true, reviewsCount: true,
+          prices: { select: { pricingUnit: true, currency: true, basePrice: true } },
+          _count: { select: { bookings: true } },
+        },
+      }),
+      this.prisma.booking.findMany({
+        where: { listing: { ownerId: user.id }, startAt: { gte: now }, status: { in: ["pending", "confirmed", "ongoing"] } },
+        orderBy: { startAt: "asc" },
+        take: 10,
+        include: {
+          listing: { select: { id: true, slug: true, title: true } },
+          customer: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      this.prisma.booking.findMany({
+        where: { listing: { ownerId: user.id }, status: { in: ["confirmed", "ongoing", "completed"] } },
+        select: { totalAmount: true, currency: true },
+      }),
+    ]);
+    const earningsByCurrency = completed.reduce<Record<string, number>>((acc, booking) => {
+      const currency = booking.currency;
+      acc[currency] = (acc[currency] ?? 0) + Number(booking.totalAmount);
+      return acc;
+    }, {});
+    return {
+      summary: {
+        listings: listings.length,
+        totalViews: listings.reduce((sum, listing) => sum + listing.viewCount, 0),
+        upcomingBookings: upcoming.length,
+        earningsByCurrency,
+      },
+      listings,
+      upcoming,
+    };
+  }
+
   @Post("listings")
   @ApiOperation({ summary: "Create a listing (submitted as draft for admin review)" })
   async createMyListing(@CurrentUser() user: AuthUser, @Body() dto: CreateMyListingDto) {
