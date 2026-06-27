@@ -69,7 +69,8 @@ export function CategoryBrowser({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api<ListingSummary[]>(`/categories/${schema.slug}/listings?${buildQuery()}`)
+    const fetchListings = getUser() ? authedApi<ListingSummary[]> : api<ListingSummary[]>;
+    fetchListings(`/categories/${schema.slug}/listings?${buildQuery()}`)
       .then(async ({ data, meta }) => {
         if (cancelled) return;
         let nextData = data;

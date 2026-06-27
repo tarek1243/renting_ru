@@ -39,8 +39,6 @@ export class ListingsService {
     const viewerGender = await this.viewerGender(query.viewerId);
     if (viewerGender) {
       AND.push({ owner: { gender: viewerGender } });
-    } else {
-      AND.push({ owner: { gender: null } });
     }
 
     // engine-level filters
