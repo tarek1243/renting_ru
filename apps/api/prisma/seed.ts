@@ -179,7 +179,12 @@ async function main() {
     { key: "seats",            label: t("Seats", "المقاعد"), dataType: "number",  unit: "seats", isRequired: true,  isFilterable: true, filterWidget: "range",  showInCard: true,  sortOrder: 7, validation: { min: 2, max: 9 } },
     { key: "doors",            label: t("Doors", "الأبواب"), dataType: "number",  isRequired: false, isFilterable: false, sortOrder: 8 },
     { key: "air_conditioning", label: t("Air conditioning", "تكييف"), dataType: "boolean", isRequired: false, isFilterable: true, filterWidget: "toggle", sortOrder: 9 },
-    { key: "color",            label: t("Color", "اللون"),   dataType: "text",    isRequired: false, isFilterable: false, sortOrder: 10 },
+    { key: "smoking_policy", label: t("Smoking", "التدخين"), dataType: "select", isRequired: false, isFilterable: true, filterWidget: "select", showInCard: true, sortOrder: 10,
+      options: [
+        { value: "non_smoking", label: t("Non-smoking", "ممنوع التدخين") },
+        { value: "smoking_allowed", label: t("Smoking allowed", "مسموح بالتدخين") },
+      ] },
+    { key: "color",            label: t("Color", "اللون"),   dataType: "text",    isRequired: false, isFilterable: false, sortOrder: 11 },
   ];
   for (const attr of carAttrs) {
     await prisma.categoryAttribute.upsert({
@@ -249,37 +254,37 @@ async function main() {
     {
       slug: "toyota-camry-2024",
       title: t("Toyota Camry 2024", "تويوتا كامري 2024"),
-      attributes: { brand: "toyota", model: "Camry", year: 2024, body_type: "sedan",  transmission: "automatic", fuel: "petrol", seats: 5, doors: 4, air_conditioning: true, color: "White" },
+      attributes: { brand: "toyota", model: "Camry", year: 2024, body_type: "sedan",  transmission: "automatic", fuel: "petrol", seats: 5, doors: 4, air_conditioning: true, smoking_policy: "non_smoking", color: "White" },
       prices: { hour: 35, day: 200, week: 1200 }, featured: true,
     },
     {
       slug: "bmw-x5-2024",
       title: t("BMW X5 2024", "بي إم دبليو X5 2024"),
-      attributes: { brand: "bmw",     model: "X5",    year: 2024, body_type: "suv",    transmission: "automatic", fuel: "hybrid", seats: 5, doors: 5, air_conditioning: true, color: "Black" },
+      attributes: { brand: "bmw",     model: "X5",    year: 2024, body_type: "suv",    transmission: "automatic", fuel: "hybrid", seats: 5, doors: 5, air_conditioning: true, smoking_policy: "non_smoking", color: "Black" },
       prices: { hour: 70, day: 450, week: 2700 }, featured: true,
     },
     {
       slug: "mercedes-e-class-2024",
       title: t("Mercedes E-Class 2024", "مرسيدس الفئة E 2024"),
-      attributes: { brand: "mercedes", model: "E 220", year: 2024, body_type: "luxury", transmission: "automatic", fuel: "petrol", seats: 5, doors: 4, air_conditioning: true, color: "Silver" },
+      attributes: { brand: "mercedes", model: "E 220", year: 2024, body_type: "luxury", transmission: "automatic", fuel: "petrol", seats: 5, doors: 4, air_conditioning: true, smoking_policy: "non_smoking", color: "Silver" },
       prices: { hour: 65, day: 400, week: 2400 }, featured: true,
     },
     {
       slug: "toyota-land-cruiser-2024",
       title: t("Toyota Land Cruiser 2024", "تويوتا لاند كروزر 2024"),
-      attributes: { brand: "toyota",   model: "Land Cruiser 300", year: 2024, body_type: "suv", transmission: "automatic", fuel: "petrol", seats: 7, doors: 5, air_conditioning: true, color: "White" },
+      attributes: { brand: "toyota",   model: "Land Cruiser 300", year: 2024, body_type: "suv", transmission: "automatic", fuel: "petrol", seats: 7, doors: 5, air_conditioning: true, smoking_policy: "non_smoking", color: "White" },
       prices: { hour: 90, day: 580, week: 3480 }, featured: true,
     },
     {
       slug: "lexus-es-350-2023",
       title: t("Lexus ES 350 2023", "لكزس ES 350 2023"),
-      attributes: { brand: "lexus",    model: "ES 350", year: 2023, body_type: "luxury", transmission: "automatic", fuel: "petrol", seats: 5, doors: 4, air_conditioning: true, color: "Champagne" },
+      attributes: { brand: "lexus",    model: "ES 350", year: 2023, body_type: "luxury", transmission: "automatic", fuel: "petrol", seats: 5, doors: 4, air_conditioning: true, smoking_policy: "non_smoking", color: "Champagne" },
       prices: { hour: 60, day: 380, week: 2280 }, featured: true,
     },
     {
       slug: "kia-carnival-2024",
       title: t("Kia Carnival 2024", "كيا كرنفال 2024"),
-      attributes: { brand: "kia",      model: "Carnival", year: 2024, body_type: "minivan", transmission: "automatic", fuel: "diesel", seats: 8, doors: 5, air_conditioning: true, color: "Gray" },
+      attributes: { brand: "kia",      model: "Carnival", year: 2024, body_type: "minivan", transmission: "automatic", fuel: "diesel", seats: 8, doors: 5, air_conditioning: true, smoking_policy: "smoking_allowed", color: "Gray" },
       prices: { hour: 45, day: 280, week: 1680 }, featured: false,
     },
   ];
